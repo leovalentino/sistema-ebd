@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secretaria EBD</title>
+  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css">
+  <style>
+    body { padding: 20px; }
+    .card { padding: 20px; border: 1px solid #333; border-radius: 8px; margin-bottom: 20px; }
+    h2 { margin-bottom: 10px; font-size: 1.2rem; border-bottom: 1px solid #444; padding-bottom: 5px; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul><li><strong>Secretaria EBD</strong></li></ul>
+      <ul><li><a href="index.html" role="button" class="outline">Ir para Chamada</a></li></ul>
+    </nav>
+
+    <section class="card">
+      <h2>Cadastrar Novo Aluno</h2>
+      <form onsubmit="cadastrarAluno(event)">
+        
+        <label>Nome do Aluno</label>
+        <input type="text" id="nome-aluno" placeholder="Ex: João da Silva" required>
+
+        <label>Selecione a Turma</label>
+        <select id="select-turmas" required>
+          <option value="" disabled selected>Carregando turmas...</option>
+        </select>
+
+        <label>
+          <input type="checkbox" id="aluno-membro" checked>
+          É membro da igreja?
+        </label>
+
+        <button type="submit">Cadastrar Aluno</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Criar Nova Turma</h2>
+      <form onsubmit="criarTurma(event)">
+        <label>Nome da Turma</label>
+        <input type="text" id="nome-nova-turma" placeholder="Ex: Crianças (4-6 anos)" required>
+        <button type="submit" class="secondary">Criar Turma</button>
+      </form>
+    </section>
+
+  </main>
+
+  <script>
+    const API_URL = '';
+
+    // 1. Carregar Turmas para o Select
+    async function carregarTurmas() {
+      try {
+        const res = await fetch(`${API_URL}/turmas`);
+        const turmas = await res.json();
+        const select = document.getElementById('select-turmas');
+        
+        select.innerHTML = '<option value="" disabled selected>Selecione uma turma...</option>';
+        turmas.forEach(t => {
+          select.innerHTML += `<option value="${t.id}">${t.nome}</option>`;
+        });
+      } catch (erro) {
+        alert("Erro ao carregar turmas. O servidor está rodando?");
+      }
+    }
+
+    // 2. Função de Cadastrar Aluno
+    async function cadastrarAluno(event) {
+      event.preventDefault(); // Não deixa a página recarregar
+      
+      const nome = document.getElementById('nome-aluno').value;
+      const turmaId = document.getElementById('select-turmas').value;
+      const ehMembro = document.getElementById('aluno-membro').checked;
+
+      const botao = event.target.querySelector('button');
+      botao.disabled = true;
+      botao.innerText = "Salvando...";
+
+      try {
+        const resposta = await fetch(`${API_URL}/alunos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nome: nome,
+            turma_id: turmaId,
+            ativo: ehMembro,
+            criado_em: new Date().toISOString()
+          })
+        });
+
+        if (resposta.ok) {
+          alert(`✅ ${nome} cadastrado com sucesso!`);
+          document.getElementById('nome-aluno').value = ''; // Limpa o campo
+        } else {
+          alert("Erro ao cadastrar.");
+        }
+      } catch (e) {
+        alert("Erro de conexão.");
+      } finally {
+        botao.disabled = false;
+        botao.innerText = "Cadastrar Aluno";
+      }
+    }
+
+    // 3. Função de Criar Turma (Para você não precisar mexer no banco manualmente)
+    async function criarTurma(event) {
+      event.preventDefault();
+      const nome = document.getElementById('nome-nova-turma').value;
+      
+      // Pequeno truque: O backend não tem rota específica de turmas POST ainda?
+      // Vamos usar a API direta do Firestore ou criar a rota no backend depois.
+      // Por enquanto, vou assumir que precisamos criar essa rota no Node.
+      
+      try {
+        const res = await fetch(`${API_URL}/turmas`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ nome: nome })
+        });
+        
+        if (res.ok) {
+          alert("Turma criada!");
+          document.getElementById('nome-nova-turma').value = '';
+          carregarTurmas(); // Atualiza o select lá em cima
+        } else {
+          alert("Erro: Você precisa criar a rota POST /turmas no backend para isso funcionar.");
+        }
+      } catch (e) {
+        alert("Erro de conexão.");
+      }
+    }
+
+    carregarTurmas();
+  </script>
+</body>
+</html>

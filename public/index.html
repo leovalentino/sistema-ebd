@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>EBD Webview</title>
+  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css">
+  
+  <style>
+    body { padding: 10px; padding-bottom: 80px; }
+    /* Estilo para a linha do aluno ficar clicável */
+    .aluno-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+      background: white;
+    }
+    /* Checkbox grande para dedo */
+    .big-check { width: 25px; height: 25px; }
+  </style>
+</head>
+<body>
+
+  <main class="container">
+    <nav>
+      <ul><li><strong>EBD Digital</strong></li></ul>
+    </nav>
+
+    <article id="painel-selecao">
+      <header>Selecione a Classe</header>
+      <select id="select-turmas">
+        <option value="" disabled selected>Carregando turmas...</option>
+      </select>
+      <footer>
+        <button onclick="iniciarChamada()">Iniciar Chamada</button>
+      </footer>
+    </article>
+
+    <article id="painel-chamada" style="display: none;">
+      <header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h5 id="titulo-turma" style="margin:0">Chamada</h5>
+          <button onclick="location.reload()" class="secondary outline" style="width: auto; padding: 5px 10px; font-size: 0.8rem">Voltar</button>
+        </div>
+      </header>
+      
+      <div id="lista-alunos"></div>
+
+      <footer>
+        <label>Oferta do dia (R$)</label>
+        <input type="number" id="valor-oferta" placeholder="0,00">
+        <button onclick="salvarChamadaDefinitiva()">Salvar Tudo</button>
+      </footer>
+    </article>
+
+    <div id="status-area"></div>
+  </main>
+  <script>
+    const API_URL = '';
+    
+    // Variáveis Globais
+    let alunosCarregados = [];
+    let turmaAtualId = ""; 
+
+    // 1. Carregar Turmas ao abrir a tela
+    async function carregarTurmas() {
+      try {
+        const resposta = await fetch(`${API_URL}/turmas`);
+        const turmas = await resposta.json();
+        const select = document.getElementById('select-turmas');
+        
+        select.innerHTML = '<option value="" disabled selected>Escolha uma turma</option>';
+        turmas.forEach(turma => {
+          select.innerHTML += `<option value="${turma.id}">${turma.nome}</option>`;
+        });
+      } catch (erro) {
+        console.error(erro);
+        document.getElementById('status-area').innerHTML = `<p style="color:red">Erro: Servidor offline ou falha na conexão.</p>`;
+      }
+    }
+
+    // 2. Botão Iniciar Chamada
+    async function iniciarChamada() {
+      const select = document.getElementById('select-turmas');
+      const turmaId = select.value;
+      const nomeTurma = select.options[select.selectedIndex].text;
+
+      if (!turmaId) return alert("Por favor, selecione uma turma!");
+
+      select.disabled = true;
+
+      try {
+        const res = await fetch(`${API_URL}/turmas/${turmaId}/alunos`);
+        if (!res.ok) throw new Error("Erro na resposta da API");
+
+        alunosCarregados = await res.json();
+        
+        // Desenha a tela passando o ID corretamente
+        renderizarChamada(nomeTurma, turmaId);
+        
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao buscar alunos. Verifique se o servidor está rodando.");
+      } finally {
+        select.disabled = false;
+      }
+    }
+
+    // 3. Função que desenha o HTML dos alunos (Com Bíblias e Revistas)
+    function renderizarChamada(nomeTurma, idTurma) {
+      turmaAtualId = idTurma; // Guarda o ID Globalmente
+      
+      document.getElementById('painel-selecao').style.display = 'none';
+      document.getElementById('painel-chamada').style.display = 'block';
+      document.getElementById('titulo-turma').innerText = nomeTurma;
+
+      const listaDiv = document.getElementById('lista-alunos');
+      listaDiv.innerHTML = '';
+
+      if (alunosCarregados.length === 0) {
+        listaDiv.innerHTML = '<p style="text-align:center">Nenhum aluno.</p>';
+        return;
+      }
+
+      // Cabeçalho
+      const header = document.createElement('div');
+      header.style.cssText = "display: flex; justify-content: flex-end; padding: 5px 15px; font-size: 0.7rem; color: gray; gap: 15px;";
+      header.innerHTML = "<span>Bíblia</span> <span>Revista</span> <span>Presente</span>";
+      listaDiv.appendChild(header);
+
+      // Lista de Alunos
+      alunosCarregados.forEach(aluno => {
+        const div = document.createElement('div');
+        div.className = 'aluno-row';
+        div.innerHTML = `
+          <div style="flex: 1">
+            <strong>${aluno.nome}</strong><br>
+            <small style="color:gray">${aluno.ativo ? 'Membro' : 'Visitante'}</small>
+          </div>
+          
+          <div style="display: flex; gap: 15px; align-items: center;">
+            <input type="checkbox" id="biblia-${aluno.id}" style="width: 20px; height: 20px;">
+            <input type="checkbox" id="revista-${aluno.id}" style="width: 20px; height: 20px;">
+            <input type="checkbox" class="big-check" id="check-${aluno.id}">
+          </div>
+        `;
+        listaDiv.appendChild(div);
+      });
+    }
+
+    // 4. Função de Salvar no Banco (CORRIGIDA)
+    async function salvarChamadaDefinitiva() {
+      // Coletar valor da oferta
+      const inputOferta = document.getElementById('valor-oferta').value;
+      const valorOferta = inputOferta ? parseFloat(inputOferta) : 0;
+      
+      // Monta a lista verificando os 3 checkboxes de cada aluno
+      const listaParaEnviar = alunosCarregados.map(aluno => {
+        // Pega o estado (true/false) de cada caixinha
+        const checkPresente = document.getElementById(`check-${aluno.id}`).checked;
+        const checkBiblia = document.getElementById(`biblia-${aluno.id}`).checked;
+        const checkRevista = document.getElementById(`revista-${aluno.id}`).checked;
+
+        return {
+          id: aluno.id,
+          nome: aluno.nome,
+          presente: checkPresente,       // Veio hoje?
+          trouxe_biblia: checkBiblia,    // Trouxe bíblia?
+          trouxe_revista: checkRevista   // Trouxe revista?
+        };
+      });
+
+      // Feedback visual no botão
+      const botao = document.querySelector('footer button');
+      const textoOriginal = botao.innerText;
+      botao.disabled = true;
+      botao.innerText = "Salvando...";
+
+      try {
+        const resposta = await fetch(`${API_URL}/chamada`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            turma_id: turmaAtualId,
+            oferta: valorOferta,
+            alunos: listaParaEnviar
+          })
+        });
+
+        const dados = await resposta.json();
+        
+        if (dados.sucesso) {
+          alert("✅ Chamada salva com sucesso!");
+          location.reload(); // Recarrega a página
+        } else {
+          alert("Erro ao salvar: " + (dados.erro || "Desconhecido"));
+        }
+
+      } catch (erro) {
+        console.error(erro);
+        alert("Erro de conexão com o servidor.");
+      } finally {
+        botao.disabled = false;
+        botao.innerText = textoOriginal;
+      }
+    }
+
+    carregarTurmas();
+  </script>
+
+</body>
+</html>

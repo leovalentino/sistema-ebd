@@ -1,0 +1,14 @@
+# Pastas pesadas do Node
+node_modules/
+
+# Arquivos de Sistema e IDE
+.DS_Store
+.vscode/
+
+# ⚠️ SEGURANÇA: Chaves do Firebase
+*.json
+!package.json
+!package-lock.json
+
+# Se você tiver um arquivo .env
+.env
