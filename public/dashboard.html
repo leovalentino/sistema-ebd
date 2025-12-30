@@ -52,6 +52,23 @@
   </main>
 
   <script>
+    const SENHA_ADM = "admin803"; // <--- Senha mais forte para o tesoureiro/pastor
+    
+    const senhaSalvaAdm = localStorage.getItem("senha_adm");
+
+    if (senhaSalvaAdm !== SENHA_ADM) {
+      const tentativa = prompt("Área Restrita (Diretoria): Digite a senha:");
+      
+      if (tentativa === SENHA_ADM) {
+        localStorage.setItem("senha_adm", SENHA_ADM);
+      } else {
+        alert("Acesso Negado!");
+        document.body.innerHTML = "<h1 style='text-align:center; margin-top:50px'>🔒 Acesso Restrito à Diretoria</h1>";
+        // Opcional: Redirecionar para a chamada se errar a senha da diretoria
+        setTimeout(() => window.location.href = "index.html", 2000);
+        throw new Error("Parando execução");
+      }
+    }
     // Se o frontend está na pasta public, a URL base é vazia
     const API_URL = ''; 
 

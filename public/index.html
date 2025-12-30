@@ -58,6 +58,25 @@
     <div id="status-area"></div>
   </main>
   <script>
+    const SENHA_PROFESSOR = "803ebd"; // <--- Mude a senha aqui se quiser
+    
+    // Verifica se já tem a senha salva no navegador
+    const senhaSalva = localStorage.getItem("senha_professor");
+
+    if (senhaSalva !== SENHA_PROFESSOR) {
+      const tentativa = prompt("Área do Professor: Digite a senha de acesso:");
+      
+      if (tentativa === SENHA_PROFESSOR) {
+        // Se acertou, salva para não pedir de novo
+        localStorage.setItem("senha_professor", SENHA_PROFESSOR);
+      } else {
+        // Se errou, apaga a tela e manda embora
+        alert("Acesso Negado!");
+        document.body.innerHTML = "<h1 style='text-align:center; margin-top:50px'>🔒 Acesso Negado</h1>";
+        throw new Error("Parando execução"); // Trava o resto do script
+      }
+    }
+
     const API_URL = '';
     
     // Variáveis Globais
