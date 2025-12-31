@@ -41,8 +41,13 @@
     /* Labels do cabeçalho (Bíblia, Revista...) */
     .header-label {
       font-size: 0.8rem;
-      font-weight: bold;
-      color: #666;
+      font-weight: 800;
+    }
+
+    /* 2. Nomes dos Alunos - Contraste máximo */
+    .aluno-nome {
+      color: #000;
+      font-weight: 600;
     }
 
     /* Ajuste para Checkbox ficar grande e fácil de tocar */
@@ -50,6 +55,20 @@
       transform: scale(1.5); /* Aumenta o tamanho */
       margin: 0;
       cursor: pointer;
+    }
+
+    .label-black {
+      font-weight: bold;
+      color: #000;
+    }
+
+    input {
+      font-weight: 500;
+    }
+
+    h6 {
+      color: #1565c0 !important; /* Azul mais forte */
+      font-weight: bold;
     }
 
     /* RESPONSIVIDADE (Celular) */
@@ -99,15 +118,15 @@
       <section style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px; border: 1px dashed #aaa;">
       <h6 style="margin-bottom: 10px; color:#1565c0;">👋 Visitantes (Não matriculados)</h6>
       <div class="grid">
-        <label>
+        <label class="label-black">
           Qtd. Pessoas
           <input type="number" id="vis-qtd" value="0" min="0">
         </label>
-        <label>
+        <label class="label-black">
           Trouxeram Bíblia
           <input type="number" id="vis-biblia" value="0" min="0">
         </label>
-        <label>
+        <label class="label-black">
           Trouxeram Revista
           <input type="number" id="vis-revista" value="0" min="0">
         </label>

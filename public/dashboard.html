@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -19,8 +19,26 @@
     .tag-total { background-color: #2e7d32; color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.9rem; font-weight: bold; }
 
     table { width: 100%; font-size: 0.9rem; background: white; }
-    th { background-color: #eee; color: #444; }
+    th { 
+      background-color: #e0e0e0; color: #444; color: #111;
+    }
     td, th { padding: 10px; text-align: left; }
+
+    td {
+      color: #222;
+    }
+
+    tfoot {
+      background-color: #cfd8dc !important;
+      color: #000 !important;
+      font-weight: 800;
+    }
+    
+    h4 small {
+      color: #444 !important;
+    }
+
+    .money-value { color: #fff; } /* No cartão azul, mantém branco */
     
     /* Responsividade simples para celular */
     @media (max-width: 600px) {
@@ -158,7 +176,7 @@
                         <h4>📅 ${data} <small style="font-weight:normal; color:#666">(${nomeDia})</small></h4>
                     </div>
                     <span class="tag-total" style="background:${somaOferta > 0 ? '#2e7d32' : '#777'}">
-                        Total Dia: ${formatarMoeda(somaOferta)}
+                        Total % Dia: ${percGeral}
                     </span>
                 </div>
                 
@@ -245,15 +263,30 @@
     }
 
     async function excluirRelatorio(id) {
-      if (!confirm("Tem certeza que deseja apagar este relatório? O dinheiro será subtraído do total.")) return;
+      // --- TRAVA DE SEGURANÇA MÁXIMA ---
+      
+      // 1. Primeira verificação visual
+      const resposta = prompt(
+        "⚠️ ATENÇÃO: ZONA DE PERIGO ⚠️\n\n" +
+        "Você está prestes a apagar um Relatório Financeiro e de Presença.\n" +
+        "Essa ação NÃO pode ser desfeita.\n\n" +
+        "Para confirmar a exclusão, digite a palavra DELETAR (em maiúsculo) abaixo:"
+      );
 
+      // 2. Validação Rígida
+      if (resposta !== "DELETAR") {
+        alert("⛔ Ação Cancelada.\nO código de confirmação estava incorreto ou você desistiu.");
+        return; // Para tudo aqui. Nada é apagado.
+      }
+
+      // Se chegou aqui, a pessoa digitou DELETAR conscientemente.
       try {
         const res = await fetch(`${API_URL}/relatorios/${id}`, { method: 'DELETE' });
         if (res.ok) {
-          alert("Relatório apagado!");
-          carregarDashboard(); // Recarrega a tela para atualizar o valor total
+          alert("Relatório apagado com sucesso.");
+          carregarDashboard(); // Recarrega a tela
         } else {
-          alert("Erro ao apagar.");
+          alert("Erro ao apagar no servidor.");
         }
       } catch (e) {
         alert("Erro de conexão.");
