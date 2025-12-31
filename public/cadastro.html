@@ -25,15 +25,13 @@
         <label>Nome do Aluno</label>
         <input type="text" id="nome-aluno" placeholder="Ex: João da Silva" required>
 
+        <label>Data de Nascimento</label>
+        <input type="date" id="nasc-aluno" style="margin-bottom: 20px;">
+
         <label>Selecione a Turma</label>
         <select id="select-turmas" required>
           <option value="" disabled selected>Carregando turmas...</option>
         </select>
-
-        <label>
-          <input type="checkbox" id="aluno-membro" checked>
-          É membro da igreja?
-        </label>
 
         <button type="submit">Cadastrar Aluno</button>
       </form>
@@ -64,6 +62,7 @@
         turmas.forEach(t => {
           select.innerHTML += `<option value="${t.id}">${t.nome}</option>`;
         });
+        document.getElementById('select-turmas').addEventListener('change', listarAlunosParaEdicao);
       } catch (erro) {
         alert("Erro ao carregar turmas. O servidor está rodando?");
       }
@@ -74,8 +73,8 @@
       event.preventDefault(); // Não deixa a página recarregar
       
       const nome = document.getElementById('nome-aluno').value;
+      const dataNasc = document.getElementById('nasc-aluno').value;
       const turmaId = document.getElementById('select-turmas').value;
-      const ehMembro = document.getElementById('aluno-membro').checked;
 
       const botao = event.target.querySelector('button');
       botao.disabled = true;
@@ -88,7 +87,8 @@
           body: JSON.stringify({
             nome: nome,
             turma_id: turmaId,
-            ativo: ehMembro,
+            data_nascimento: dataNasc,
+            ativo: true,
             criado_em: new Date().toISOString()
           })
         });
@@ -132,6 +132,136 @@
         }
       } catch (e) {
         alert("Erro de conexão.");
+      }
+    }
+
+    // Substitua a função listarAlunosParaEdicao por esta versão completa:
+    async function listarAlunosParaEdicao() {
+      const turmaId = document.getElementById('select-turmas').value;
+      if (!turmaId) return;
+
+      let areaLista = document.getElementById('lista-edicao');
+      if (!areaLista) {
+        areaLista = document.createElement('div');
+        areaLista.id = 'lista-edicao';
+        areaLista.className = 'card';
+        areaLista.style.marginTop = '20px';
+        document.querySelector('main').appendChild(areaLista);
+      }
+      areaLista.innerHTML = 'Carregando alunos...';
+
+      const res = await fetch(`${API_URL}/turmas/${turmaId}/alunos`);
+      const alunos = await res.json();
+
+      areaLista.innerHTML = '<h4>✏️ Toque para editar</h4>';
+      
+      if (alunos.length === 0) areaLista.innerHTML += '<p>Sem alunos.</p>';
+
+      alunos.forEach(aluno => {
+       if (aluno.ativo === false) return; 
+
+        const linha = document.createElement('div');
+        linha.style.padding = "15px";
+        linha.style.borderBottom = "1px solid #eee";
+        linha.style.display = "flex";
+        linha.style.justifyContent = "space-between";
+        linha.style.alignItems = "center";
+        
+        // Coluna 1: Nome
+        const divNome = document.createElement('div');
+        divNome.style.flex = "1";
+        divNome.style.cursor = "pointer";
+        divNome.innerHTML = `<strong>${aluno.nome}</strong>`;
+        divNome.onclick = () => editarCampo(aluno.id, 'nome', aluno.nome, 'text');
+
+        // Coluna 2: Ações (Data + Excluir)
+        const divAcoes = document.createElement('div');
+        divAcoes.style.display = 'flex';
+        divAcoes.style.gap = '15px';
+        divAcoes.style.alignItems = 'center';
+
+        // Data
+        let dataFormatada = "--/--";
+        if (aluno.data_nascimento) {
+            const partes = aluno.data_nascimento.split('-');
+            dataFormatada = `${partes[2]}/${partes[1]}`;
+        }
+        
+        const spanData = document.createElement('span');
+        spanData.innerText = `📅 ${dataFormatada}`;
+        spanData.style.cursor = "pointer";
+        spanData.style.fontSize = "0.9rem";
+        spanData.onclick = () => editarCampo(aluno.id, 'data_nascimento', aluno.data_nascimento, 'date');
+
+        // Botão Excluir (Soft Delete)
+        const btnExcluir = document.createElement('span');
+        btnExcluir.innerText = "🗑️";
+        btnExcluir.style.cursor = "pointer";
+        btnExcluir.title = "Desativar Aluno";
+        btnExcluir.onclick = async () => {
+            if (confirm(`Deseja remover ${aluno.nome} da lista de chamada?`)) {
+                await desativarAluno(aluno.id);
+            }
+        };
+
+        divAcoes.appendChild(spanData);
+        divAcoes.appendChild(btnExcluir);
+
+        linha.appendChild(divNome);
+        linha.appendChild(divAcoes);
+        areaLista.appendChild(linha);
+      });
+    }
+
+    // Função genérica para editar qualquer campo
+    async function editarCampo(id, campo, valorAtual, tipoInput) {
+        // Se for data, o prompt não é o ideal, mas funciona se digitar AAAA-MM-DD.
+        // Vamos fazer um truque simples: usar o prompt mesmo.
+        
+        let novoValor;
+        if (tipoInput === 'date') {
+            const instrucao = valorAtual ? `(Atual: ${valorAtual})` : '(vazio)';
+            novoValor = prompt(`Digite a nova data (AAAA-MM-DD) ${instrucao}:`, valorAtual);
+        } else {
+            novoValor = prompt(`Editar ${campo}:`, valorAtual);
+        }
+
+        if (novoValor && novoValor !== valorAtual) {
+            const payload = {};
+            payload[campo] = novoValor; // Cria objeto dinâmico { nome: "..." } ou { data_nascimento: "..." }
+
+            try {
+                await fetch(`${API_URL}/alunos/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                listarAlunosParaEdicao(); // Atualiza a lista
+            } catch (e) { alert("Erro ao salvar"); }
+        }
+    }
+
+    async function editarNomeAluno(id, novoNome) {
+      try {
+        await fetch(`${API_URL}/alunos/${id}`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ nome: novoNome })
+        });
+        alert("Nome atualizado!");
+      } catch (e) { alert("Erro ao editar"); }
+    }
+
+    async function desativarAluno(id) {
+      try {
+        await fetch(`${API_URL}/alunos/${id}`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ativo: false }) // <--- O PULO DO GATO
+        });
+        listarAlunosParaEdicao(); // Atualiza a lista e o aluno some
+      } catch (e) {
+        alert("Erro ao desativar aluno.");
       }
     }
 

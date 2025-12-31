@@ -19,6 +19,54 @@
     }
     /* Checkbox grande para dedo */
     .big-check { width: 25px; height: 25px; }
+
+    .grid-chamada {
+      display: grid;
+      /* 1ª coluna (Nome): Flexível | 2ª, 3ª, 4ª colunas: 60px fixos */
+      grid-template-columns: 1fr 60px 60px 60px; 
+      gap: 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    /* Centraliza o conteúdo das colunas de checkbox */
+    .col-center {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+
+    /* Labels do cabeçalho (Bíblia, Revista...) */
+    .header-label {
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #666;
+    }
+
+    /* Ajuste para Checkbox ficar grande e fácil de tocar */
+    input[type="checkbox"] {
+      transform: scale(1.5); /* Aumenta o tamanho */
+      margin: 0;
+      cursor: pointer;
+    }
+
+    /* RESPONSIVIDADE (Celular) */
+    @media (max-width: 600px) {
+      .grid-chamada {
+        /* Diminui um pouco as colunas no celular */
+        grid-template-columns: 1fr 40px 40px 40px; 
+        gap: 5px;
+      }
+      
+      /* Esconde o texto e mostra ícones ou abreviações no celular se precisar */
+      .header-label {
+        font-size: 0.65rem; 
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
   </style>
 </head>
 <body>
@@ -48,9 +96,31 @@
       
       <div id="lista-alunos"></div>
 
+      <section style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px; border: 1px dashed #aaa;">
+      <h6 style="margin-bottom: 10px; color:#1565c0;">👋 Visitantes (Não matriculados)</h6>
+      <div class="grid">
+        <label>
+          Qtd. Pessoas
+          <input type="number" id="vis-qtd" value="0" min="0">
+        </label>
+        <label>
+          Trouxeram Bíblia
+          <input type="number" id="vis-biblia" value="0" min="0">
+        </label>
+        <label>
+          Trouxeram Revista
+          <input type="number" id="vis-revista" value="0" min="0">
+        </label>
+      </div>
+      </section>
+
       <footer>
+        <label>Data da Aula</label>
+        <input type="date" id="data-aula" style="margin-bottom: 20px;">
+
         <label>Oferta do dia (R$)</label>
         <input type="number" id="valor-oferta" placeholder="0,00">
+        
         <button onclick="salvarChamadaDefinitiva()">Salvar Tudo</button>
       </footer>
     </article>
@@ -135,63 +205,89 @@
       document.getElementById('painel-chamada').style.display = 'block';
       document.getElementById('titulo-turma').innerText = nomeTurma;
 
-      const listaDiv = document.getElementById('lista-alunos');
-      listaDiv.innerHTML = '';
+      const hoje = new Date().toISOString().split('T')[0]; // Pega YYYY-MM-DD
+      document.getElementById('data-aula').value = hoje;
+
+      const lista = document.getElementById('lista-alunos');
+      lista.innerHTML = '';
 
       if (alunosCarregados.length === 0) {
-        listaDiv.innerHTML = '<p style="text-align:center">Nenhum aluno.</p>';
+        lista.innerHTML = '<p style="text-align:center">Nenhum aluno.</p>';
         return;
       }
 
       // Cabeçalho
       const header = document.createElement('div');
-      header.style.cssText = "display: flex; justify-content: flex-end; padding: 5px 15px; font-size: 0.7rem; color: gray; gap: 15px;";
-      header.innerHTML = "<span>Bíblia</span> <span>Revista</span> <span>Presente</span>";
-      listaDiv.appendChild(header);
+      header.className = 'grid-chamada'; // <--- Mesma classe das linhas
+      header.style.borderBottom = "2px solid #ccc"; // Destaque visual
+      header.innerHTML = `
+          <div></div> <div class="col-center header-label">Bíblia</div>
+          <div class="col-center header-label">Revista</div>
+          <div class="col-center header-label">Pres.</div>
+      `;
+      lista.appendChild(header);
 
       // Lista de Alunos
-      alunosCarregados.forEach(aluno => {
-        const div = document.createElement('div');
-        div.className = 'aluno-row';
-        div.innerHTML = `
-          <div style="flex: 1">
-            <strong>${aluno.nome}</strong><br>
-            <small style="color:gray">${aluno.ativo ? 'Membro' : 'Visitante'}</small>
-          </div>
-          
-          <div style="display: flex; gap: 15px; align-items: center;">
-            <input type="checkbox" id="biblia-${aluno.id}" style="width: 20px; height: 20px;">
-            <input type="checkbox" id="revista-${aluno.id}" style="width: 20px; height: 20px;">
-            <input type="checkbox" class="big-check" id="check-${aluno.id}">
-          </div>
+      alunosCarregados.forEach((aluno, index) => {
+        // --- FILTRO DE INATIVOS ---
+        // Se o campo 'ativo' for estritamente false, pula esse aluno
+        if (aluno.ativo === false) return; // Filtro de inativos
+        const linha = document.createElement('div');
+        linha.className = 'grid-chamada'; // <--- USA A MESMA CLASSE DO HEADER
+        
+        // IDs únicos para os checkboxes
+        const idPresenca = `presenca-${index}`;
+        const idBiblia = `biblia-${index}`;
+        const idRevista = `revista-${index}`;
+
+        linha.innerHTML = `
+            <div style="font-weight:bold;">${aluno.nome}</div>
+
+            <div class="col-center">
+                <input type="checkbox" id="${idBiblia}" ${aluno.trouxe_biblia ? 'checked' : ''}>
+            </div>
+
+            <div class="col-center">
+                <input type="checkbox" id="${idRevista}" ${aluno.trouxe_revista ? 'checked' : ''}>
+            </div>
+
+            <div class="col-center">
+                <input type="checkbox" id="${idPresenca}" ${aluno.presente ? 'checked' : ''}>
+            </div>
         `;
-        listaDiv.appendChild(div);
+        lista.appendChild(linha);
       });
     }
 
-    // 4. Função de Salvar no Banco (CORRIGIDA)
+    // 4. Função de Salvar no Banco
     async function salvarChamadaDefinitiva() {
-      // Coletar valor da oferta
       const inputOferta = document.getElementById('valor-oferta').value;
       const valorOferta = inputOferta ? parseFloat(inputOferta) : 0;
+      const dataEscolhida = document.getElementById('data-aula').value;
+
+      const visQtd = parseInt(document.getElementById('vis-qtd').value) || 0;
+      const visBiblia = parseInt(document.getElementById('vis-biblia').value) || 0;
+      const visRevista = parseInt(document.getElementById('vis-revista').value) || 0;
       
-      // Monta a lista verificando os 3 checkboxes de cada aluno
-      const listaParaEnviar = alunosCarregados.map(aluno => {
-        // Pega o estado (true/false) de cada caixinha
-        const checkPresente = document.getElementById(`check-${aluno.id}`).checked;
-        const checkBiblia = document.getElementById(`biblia-${aluno.id}`).checked;
-        const checkRevista = document.getElementById(`revista-${aluno.id}`).checked;
+      const listaParaEnviar = alunosCarregados
+        .filter(a => a.ativo !== false) // Só salva quem está ativo
+        .map(aluno => {
+            // Agora os IDs batem exatamente com o que foi criado no HTML
+            // Nota: usei 'presenca-' no HTML, então busco 'presenca-' aqui
+            const elPresente = document.getElementById(`presenca-${aluno.id}`);
+            const elBiblia = document.getElementById(`biblia-${aluno.id}`);
+            const elRevista = document.getElementById(`revista-${aluno.id}`);
 
-        return {
-          id: aluno.id,
-          nome: aluno.nome,
-          presente: checkPresente,       // Veio hoje?
-          trouxe_biblia: checkBiblia,    // Trouxe bíblia?
-          trouxe_revista: checkRevista   // Trouxe revista?
-        };
-      });
+            return {
+              id: aluno.id,
+              nome: aluno.nome,
+              // O ?.checked evita erro se o elemento não for encontrado por algum motivo
+              presente: elPresente ? elPresente.checked : false,       
+              trouxe_biblia: elBiblia ? elBiblia.checked : false,    
+              trouxe_revista: elRevista ? elRevista.checked : false   
+            };
+        });
 
-      // Feedback visual no botão
       const botao = document.querySelector('footer button');
       const textoOriginal = botao.innerText;
       botao.disabled = true;
@@ -204,7 +300,13 @@
           body: JSON.stringify({
             turma_id: turmaAtualId,
             oferta: valorOferta,
-            alunos: listaParaEnviar
+            alunos: listaParaEnviar,
+            data_aula: dataEscolhida,
+            visitantes: {
+                quantidade: visQtd,
+                biblias: visBiblia,
+                revistas: visRevista
+            }
           })
         });
 
@@ -212,7 +314,7 @@
         
         if (dados.sucesso) {
           alert("✅ Chamada salva com sucesso!");
-          location.reload(); // Recarrega a página
+          location.reload(); 
         } else {
           alert("Erro ao salvar: " + (dados.erro || "Desconhecido"));
         }

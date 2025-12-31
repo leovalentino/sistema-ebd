@@ -119,6 +119,36 @@
             const grupo = grupos[data];
             const nomeDia = obterDiaSemana(data); // Ex: "Domingo"
 
+            let somaMatr = 0, somaPres = 0, somaAus = 0, somaVis = 0;
+            let somaOferta = 0, somaBib = 0, somaRev = 0;
+
+            grupo.aulas.forEach(aula => {
+                // Extrai os dados de cada aula para somar
+                const vis = aula.resumo.visitantes || { quantidade: 0, biblias: 0, revistas: 0 };
+                const matriculados = aula.detalhes_alunos ? aula.detalhes_alunos.length : 0;
+                
+                // Tenta pegar do resumo, se não tiver conta na mão
+                const presentes = aula.resumo.presentes !== undefined 
+                    ? aula.resumo.presentes 
+                    : (aula.detalhes_alunos || []).filter(a => a.presente).length;
+
+                // Somatórios
+                somaMatr += matriculados;
+                somaPres += presentes;
+                somaAus += (matriculados - presentes);
+                somaVis += (vis.quantidade || 0);
+                somaOferta += (aula.oferta_total || 0);
+                
+                // Bíblias e Revistas (Soma Membros + Visitantes)
+                somaBib += (aula.resumo.biblias || 0) + (vis.biblias || 0);
+                somaRev += (aula.resumo.revistas || 0) + (vis.revistas || 0);
+            });
+
+            // Média de Frequência da Igreja toda no dia
+            const percGeral = somaMatr > 0 ? ((somaPres / somaMatr) * 100).toFixed(2) : "0.00";
+            const corPercGeral = parseFloat(percGeral) < 50 ? 'red' : 'green';
+            // ----------------------------------------
+
             // HTML do Grupo (Cabeçalho do Dia + Tabela)
             const divGrupo = document.createElement('div');
             divGrupo.className = 'grupo-data';
@@ -127,32 +157,68 @@
                     <div>
                         <h4>📅 ${data} <small style="font-weight:normal; color:#666">(${nomeDia})</small></h4>
                     </div>
-                    <span class="tag-total">Total do Dia: ${formatarMoeda(grupo.totalDia)}</span>
+                    <span class="tag-total" style="background:${somaOferta > 0 ? '#2e7d32' : '#777'}">
+                        Total Dia: ${formatarMoeda(somaOferta)}
+                    </span>
                 </div>
                 
-                <table role="grid">
+                <table role="grid" style="font-size: 0.85rem">
                     <thead>
                         <tr>
                             <th>Turma</th>
+                            <th title="Total de Matriculados">Matr.</th>
+                            <th title="Total de Presentes">Pres.</th>
+                            <th title="Total de Ausentes">Aus.</th>
+                            <th>% Freq.</th>
+                            <th>Visit.</th>
                             <th>Oferta</th>
-                            <th style="text-align:center">👥 Pres.</th>
-                            <th style="text-align:center">📖 Bíblia</th>
-                            <th style="text-align:center">📘 Revista</th>
+                            <th>Bib/Rev</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${grupo.aulas.map(aula => `
-                            <tr>
-                                <td><strong>${mapaTurmas[aula.turma_id] || 'Turma Desconhecida'}</strong></td>
-                                <td style="color: ${aula.oferta_total > 0 ? '#1565c0' : '#aaa'}">
-                                    ${formatarMoeda(aula.oferta_total)}
-                                </td>
-                                <td style="text-align:center">${aula.resumo.presentes || 0}</td>
-                                <td style="text-align:center">${aula.resumo.biblias || 0}</td>
-                                <td style="text-align:center">${aula.resumo.revistas || 0}</td>
-                            </tr>
-                        `).join('')}
+                        ${grupo.aulas.map(aula => {
+                            // Cálculos individuais da linha (Turma)
+                            const vis = aula.resumo.visitantes || { quantidade: 0, biblias: 0, revistas: 0 };
+                            const matriculados = aula.detalhes_alunos ? aula.detalhes_alunos.length : 0;
+                            const presentes = aula.resumo.presentes !== undefined ? aula.resumo.presentes : (aula.detalhes_alunos || []).filter(a => a.presente).length;
+                            const ausentes = matriculados - presentes;
+                            const percentual = matriculados > 0 ? ((presentes / matriculados) * 100).toFixed(2) : "0.00";
+                            const corFreq = parseFloat(percentual) < 50 ? 'red' : '#666';
+                            const tBib = (aula.resumo.biblias || 0) + (vis.biblias || 0);
+                            const tRev = (aula.resumo.revistas || 0) + (vis.revistas || 0);
+
+                            return `
+                                <tr>
+                                    <td>
+                                        <strong>${mapaTurmas[aula.turma_id] || 'Turma Desconhecida'}</strong>
+                                        <br><small style="color:red; cursor:pointer; font-size:0.7rem" onclick="excluirRelatorio('${aula.id}')">[x] Excluir</small>
+                                    </td>
+                                    <td style="text-align:center">${matriculados}</td>
+                                    <td style="text-align:center; color:green">${presentes}</td>
+                                    <td style="text-align:center; color:#d32f2f">${ausentes}</td>
+                                    <td style="text-align:center; color:${corFreq}; font-weight:bold">${percentual}%</td>
+                                    <td style="text-align:center; background-color:#f0f8ff">${vis.quantidade}</td>
+                                    <td style="color:${aula.oferta_total > 0 ? '#1565c0' : '#aaa'}">${formatarMoeda(aula.oferta_total)}</td>
+                                    <td style="text-align:center; font-size:0.8rem">📖 ${tBib}<br>📘 ${tRev}</td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
+                    
+                    <tfoot style="font-weight:bold; background-color:#eee; border-top: 2px solid #aaa;">
+                        <tr>
+                            <td>TOTAIS</td>
+                            <td style="text-align:center">${somaMatr}</td>
+                            <td style="text-align:center; color:green">${somaPres}</td>
+                            <td style="text-align:center; color:#d32f2f">${somaAus}</td>
+                            <td style="text-align:center; color:${corPercGeral}">${percGeral}%</td>
+                            <td style="text-align:center; background-color:#e3f2fd">${somaVis}</td>
+                            <td style="color:#1565c0">${formatarMoeda(somaOferta)}</td>
+                            <td style="text-align:center; font-size:0.8rem">
+                                📖 ${somaBib}<br>📘 ${somaRev}
+                            </td>
+                        </tr>
+                    </tfoot>
                 </table>
             `;
             area.appendChild(divGrupo);
@@ -176,6 +242,22 @@
         const dataObj = new Date(partes[2], partes[1] - 1, partes[0]);
         const dias = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         return dias[dataObj.getDay()];
+    }
+
+    async function excluirRelatorio(id) {
+      if (!confirm("Tem certeza que deseja apagar este relatório? O dinheiro será subtraído do total.")) return;
+
+      try {
+        const res = await fetch(`${API_URL}/relatorios/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          alert("Relatório apagado!");
+          carregarDashboard(); // Recarrega a tela para atualizar o valor total
+        } else {
+          alert("Erro ao apagar.");
+        }
+      } catch (e) {
+        alert("Erro de conexão.");
+      }
     }
 
     carregarDashboard();

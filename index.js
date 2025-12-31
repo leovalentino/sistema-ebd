@@ -3,7 +3,6 @@ const admin = require('firebase-admin');
 const cors = require('cors');
 
 // --- CONFIGURAÇÕES DO FIREBASE ---
-// ⚠️ IMPORTANTE: Confirme se o nome deste arquivo é exatamente o que está na sua pasta
 const serviceAccount = require('./ebd-803-firebase-key.json'); 
 
 admin.initializeApp({
@@ -17,7 +16,6 @@ const app = express();
 app.use(cors());          // Libera acesso para navegadores
 app.use(express.json());  // Permite receber dados em JSON
 
-// 🌟 AQUI ESTÁ A MUDANÇA:
 // Diz para o servidor entregar os arquivos da pasta 'public' (index.html, etc)
 app.use(express.static('public')); 
 
@@ -34,11 +32,24 @@ app.get('/turmas', async (req, res) => {
 
 // Rota 3: Cadastrar Aluno
 app.post('/alunos', async (req, res) => {
-  const doc = await db.collection('alunos').add(req.body);
-  res.json({ id: doc.id });
+  try {
+    // Recebe a data junto com os outros dados
+    const { nome, turma_id, ativo, data_nascimento } = req.body;
+    
+    await db.collection('alunos').add({
+      nome: nome,
+      turma_id: turma_id,
+      ativo: ativo,
+      data_nascimento: data_nascimento || null, // Salva null se não preencher
+      criado_em: new Date().toISOString()
+    });
+    res.json({ sucesso: true });
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message });
+  }
 });
 
-// Rota 4: BUSCAR ALUNOS DA TURMA (Essa é a que estava dando 404)
+// Rota 4: BUSCAR ALUNOS DA TURMA
 app.get('/turmas/:turmaId/alunos', async (req, res) => {
   try {
     const turmaId = req.params.turmaId;
@@ -63,22 +74,35 @@ app.get('/turmas/:turmaId/alunos', async (req, res) => {
 app.post('/chamada', async (req, res) => {
   try {
     // 1. Recebe os dados que vieram do site
-    const { turma_id, oferta, alunos } = req.body;
+    const { turma_id, oferta, alunos, data_aula, visitantes } = req.body;
 
     // 2. Calcula os totais para facilitar relatórios futuros
     const total_presentes = alunos.filter(a => a.presente).length;
     const total_biblias = alunos.filter(a => a.trouxe_biblia).length;
     const total_revistas = alunos.filter(a => a.trouxe_revista).length;
 
+    const dadosVisitantes = visitantes || { quantidade: 0, biblias: 0, revistas: 0 };
+
+    let timestamp;
+    if (data_aula) {
+        // Se veio uma data (YYYY-MM-DD), cria o timestamp forçando meio-dia
+        // (Isso evita bugs de fuso horário que jogam pro dia anterior)
+        timestamp = admin.firestore.Timestamp.fromDate(new Date(data_aula + "T12:00:00"));
+    } else {
+        // Se não veio, usa o momento atual
+        timestamp = admin.firestore.Timestamp.now();
+    }
+
     // 3. Monta o objeto final para o banco
     const relatorio = {
       turma_id: turma_id,
-      data_aula: admin.firestore.Timestamp.now(), // Data de hoje
+      data_aula: timestamp,
       oferta_total: parseFloat(oferta) || 0,
       resumo: {
         presentes: total_presentes,
         biblias: total_biblias,
-        revistas: total_revistas
+        revistas: total_revistas,
+        visitantes: dadosVisitantes
       },
       detalhes_alunos: alunos // A lista completa com os checkboxes
     };
@@ -132,6 +156,29 @@ app.get('/relatorios', async (req, res) => {
   }
 });
 
+// Rota: Editar Aluno
+app.put('/alunos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dadosAtualizados = req.body; // Pega tudo que vier (nome, data, etc)
+    
+    await db.collection('alunos').doc(id).update(dadosAtualizados);
+    res.json({ sucesso: true });
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message });
+  }
+});
+
+// Rota: Excluir Relatório (Para corrigir chamadas erradas)
+app.delete('/relatorios/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.collection('relatorios_aula').doc(id).delete();
+    res.json({ sucesso: true });
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message });
+  }
+});
 
 // --- O LISTEN FICA NO FINAL DE TUDO ---
 const PORTA = process.env.PORT || 3000;
