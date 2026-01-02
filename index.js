@@ -1,14 +1,35 @@
+// 1. Carrega as variáveis do arquivo ..env
+require('dotenv').config();
+
 const express = require('express');
-const admin = require('firebase-admin');
+const admin = require("firebase-admin");
 const cors = require('cors');
 
-// --- CONFIGURAÇÕES DO FIREBASE ---
-const serviceAccount = require('./ebd-803-firebase-key.json'); 
+// 2. Lê a variável de ambiente (Se não tiver nada, assume 'development')
+const AMBIENTE = process.env.NODE_ENV || 'development';
+
+// Verifica se é produção
+const isProduction = AMBIENTE === 'production';
+
+let serviceAccount;
+
+if (isProduction) {
+  console.log("🔴 AMBIENTE: PRODUÇÃO (DADOS REAIS)");
+  // Em produção (no servidor), o arquivo deve existir lá
+  try {
+    serviceAccount = require("./ebd-803-firebase-key.json");
+  } catch (e) {
+    console.error("ERRO CRÍTICO: Arquivo de credenciais de produção não encontrado!");
+    process.exit(1);
+  }
+} else {
+  console.log("🟢 AMBIENTE: DESENVOLVIMENTO (TESTE)");
+  serviceAccount = require("./ebd-803-firebase-key-test.json");
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
-
 const db = admin.firestore(); // Conecta no banco de dados
 
 // --- CONFIGURAÇÕES DO SERVIDOR (EXPRESS) ---
@@ -61,7 +82,10 @@ app.get('/turmas/:turmaId/alunos', async (req, res) => {
 
     const listaAlunos = [];
     snapshot.forEach(doc => {
-      listaAlunos.push({ id: doc.id, ...doc.data() });
+      listaAlunos.push({
+        id: doc.id,
+        ...doc.data()
+      });
     });
 
     res.json(listaAlunos);
@@ -70,52 +94,70 @@ app.get('/turmas/:turmaId/alunos', async (req, res) => {
   }
 });
 
-// Rota 5: Salvar Chamada (COMPLETA)
-app.post('/chamada', async (req, res) => {
+// Rota 5: PAINEL FINANCEIRO (Agrupado por TRIMESTRE)
+app.get('/financeiro/resumo', async (req, res) => {
   try {
-    // 1. Recebe os dados que vieram do site
-    const { turma_id, oferta, alunos, data_aula, visitantes } = req.body;
+    const snapshot = await db.collection('relatorios_aula')
+        .where('oferta_total', '>', 0)
+        .orderBy('oferta_total', 'desc')
+        .get();
 
-    // 2. Calcula os totais para facilitar relatórios futuros
-    const total_presentes = alunos.filter(a => a.presente).length;
-    const total_biblias = alunos.filter(a => a.trouxe_biblia).length;
-    const total_revistas = alunos.filter(a => a.trouxe_revista).length;
+    const dadosPorTrimestre = {};
+    let totalGeral = 0;
 
-    const dadosVisitantes = visitantes || { quantidade: 0, biblias: 0, revistas: 0 };
-
-    let timestamp;
-    if (data_aula) {
-        // Se veio uma data (YYYY-MM-DD), cria o timestamp forçando meio-dia
-        // (Isso evita bugs de fuso horário que jogam pro dia anterior)
-        timestamp = admin.firestore.Timestamp.fromDate(new Date(data_aula + "T12:00:00"));
-    } else {
-        // Se não veio, usa o momento atual
-        timestamp = admin.firestore.Timestamp.now();
-    }
-
-    // 3. Monta o objeto final para o banco
-    const relatorio = {
-      turma_id: turma_id,
-      data_aula: timestamp,
-      oferta_total: parseFloat(oferta) || 0,
-      resumo: {
-        presentes: total_presentes,
-        biblias: total_biblias,
-        revistas: total_revistas,
-        visitantes: dadosVisitantes
-      },
-      detalhes_alunos: alunos // A lista completa com os checkboxes
+    // Nomes bonitos para exibir
+    const nomesTrimestres = {
+      1: "Jan-Mar",
+      2: "Abr-Jun",
+      3: "Jul-Set",
+      4: "Out-Dez"
     };
 
-    // 4. Salva na coleção 'relatorios_aula'
-    await db.collection('relatorios_aula').add(relatorio);
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const valor = data.oferta_total;
 
-    // 5. Responde para o site que deu certo
-    res.json({ sucesso: true, mensagem: "Dados gravados no Firestore!" });
+      const dataJS = data.data_aula.toDate();
+      const mes = dataJS.getMonth(); // 0 a 11
+      const ano = dataJS.getFullYear();
+
+      // CÁLCULO MÁGICO DO TRIMESTRE
+      // Dividimos o mês por 3 e arredondamos para baixo.
+      // Ex: Janeiro (0) / 3 = 0 -> +1 = 1º Trimestre
+      // Ex: Abril (3) / 3 = 1 -> +1 = 2º Trimestre
+      const numTrimestre = Math.floor(mes / 3) + 1;
+
+      // Cria a chave ex: "Jan-Mar/2024"
+      // Usamos um prefixo numérico (ano-trimestre) para facilitar a ordenação depois, se precisar
+      // Mas aqui vamos usar a chave de exibição direta para simplificar
+      const chave = `${nomesTrimestres[numTrimestre]}/${ano}`;
+
+      if (!dadosPorTrimestre[chave]) {
+        dadosPorTrimestre[chave] = 0;
+      }
+
+      dadosPorTrimestre[chave] += valor;
+      totalGeral += valor;
+    });
+
+    // Transforma em array
+    const relatorioFinal = Object.keys(dadosPorTrimestre).map(chave => ({
+      periodo: chave,
+      total: dadosPorTrimestre[chave]
+    }));
+
+    // Opcional: Ordenar para que "Jan-Mar" venha antes de "Abr-Jun"
+    // (Como strings, Jan vem depois de Abr, então precisamos de cuidado se a ordem importar muito)
+    // Se a ordem ficar bagunçada, me avise que fazemos uma ordenação mais robusta.
+
+    res.json({
+      total_acumulado: totalGeral,
+      historico: relatorioFinal // Mudei o nome de 'historico_meses' para 'historico'
+    });
 
   } catch (erro) {
-    console.error("Erro ao salvar:", erro);
-    res.status(500).json({ erro: "Erro interno ao salvar chamada." });
+    console.error(erro);
+    res.status(500).json({ erro: erro.message });
   }
 });
 
@@ -176,6 +218,94 @@ app.delete('/relatorios/:id', async (req, res) => {
     await db.collection('relatorios_aula').doc(id).delete();
     res.json({ sucesso: true });
   } catch (erro) {
+    res.status(500).json({ erro: erro.message });
+  }
+});
+
+// --- NOVO: Rota para verificar se já tem chamada no dia ---
+app.get('/chamada/verificar', async (req, res) => {
+  try {
+    const { turma_id, data } = req.query;
+
+    // Recria a lógica do Timestamp (Meio-dia) para bater com o banco
+    const timestamp = admin.firestore.Timestamp.fromDate(new Date(data + "T12:00:00"));
+
+    const snapshot = await db.collection('relatorios_aula')
+        .where('turma_id', '==', turma_id)
+        .where('data_aula', '==', timestamp)
+        .limit(1)
+        .get();
+
+    if (snapshot.empty) {
+      return res.json({ encontrada: false });
+    }
+
+    // Se achou, devolve os dados para preencher a tela
+    const doc = snapshot.docs[0];
+    return res.json({ encontrada: true, id: doc.id, ...doc.data() });
+
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message });
+  }
+});
+
+// ATUALIZADO: Rota de Salvar (Com busca por intervalo de data)
+app.post('/chamada', async (req, res) => {
+  try {
+    const { turma_id, oferta, alunos, data_aula, visitantes, professor, observacoes } = req.body;
+
+    // 1. Definição do Intervalo
+    // Adicionamos 'T00:00:00' e ajustamos o fuso se necessário, mas para debug vamos simples
+    const startData = new Date(data_aula + "T00:00:00");
+    const endData = new Date(data_aula + "T23:59:59");
+
+    // Converter para Timestamp do Firebase
+    const start = admin.firestore.Timestamp.fromDate(startData);
+    const end = admin.firestore.Timestamp.fromDate(endData);
+
+    // 2. Busca
+    const snapshot = await db.collection('relatorios_aula')
+        .where('turma_id', '==', turma_id)
+        .where('data_aula', '>=', start)
+        .where('data_aula', '<=', end)
+        .limit(1)
+        .get();
+
+    // Prepara dados para salvar
+    const timestampPadrao = admin.firestore.Timestamp.fromDate(new Date(data_aula + "T12:00:00"));
+
+    const total_presentes = alunos.filter(a => a.presente).length;
+    const total_biblias = alunos.filter(a => a.trouxe_biblia).length;
+    const total_revistas = alunos.filter(a => a.trouxe_revista).length;
+
+    const dadosRelatorio = {
+      turma_id,
+      data_aula: timestampPadrao,
+      oferta_total: parseFloat(oferta) || 0,
+      professor: professor || "",
+      observacoes: observacoes || "",
+      resumo: {
+        presentes: total_presentes,
+        biblias: total_biblias,
+        revistas: total_revistas,
+        visitantes: visitantes || { quantidade: 0, biblias: 0, revistas: 0 }
+      },
+      detalhes_alunos: alunos
+    };
+
+    if (!snapshot.empty) {
+      // UPDATE
+      const docId = snapshot.docs[0].id;
+      await db.collection('relatorios_aula').doc(docId).set(dadosRelatorio, { merge: true });
+      res.json({ sucesso: true, mensagem: "Chamada atualizada!" });
+    } else {
+      // CREATE
+      const docRef = await db.collection('relatorios_aula').add(dadosRelatorio);
+      res.json({ sucesso: true, mensagem: "Nova chamada salva!" });
+    }
+
+  } catch (erro) {
+    console.error("ERRO NO CATCH:", erro);
     res.status(500).json({ erro: erro.message });
   }
 });

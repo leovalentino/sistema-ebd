@@ -112,6 +112,11 @@
           <button onclick="location.reload()" class="secondary outline" style="width: auto; padding: 5px 10px; font-size: 0.8rem">Voltar</button>
         </div>
       </header>
+
+      <section>
+        <label>Data da Aula</label>
+        <input type="date" id="data-aula" style="margin-bottom: 20px;" onchange="verificarChamadaExistente()">
+      </section>
       
       <div id="lista-alunos"></div>
 
@@ -134,11 +139,16 @@
       </section>
 
       <footer>
-        <label>Data da Aula</label>
-        <input type="date" id="data-aula" style="margin-bottom: 20px;">
+        <label>
+          Professor Responsável
+          <input type="text" id="nome-professor" placeholder="Quem ministrou?">
+        </label>
 
         <label>Oferta do dia (R$)</label>
         <input type="number" id="valor-oferta" placeholder="0,00">
+
+        <label>Observações / Ocorrências</label>
+        <textarea id="obs-aula" rows="2" placeholder="Ex: Tivemos R$10,00 de oferta em PIX"></textarea>
         
         <button onclick="salvarChamadaDefinitiva()">Salvar Tudo</button>
       </footer>
@@ -204,10 +214,14 @@
         if (!res.ok) throw new Error("Erro na resposta da API");
 
         alunosCarregados = await res.json();
-        
+
+        const hoje = new Date().toISOString().split('T')[0];
+        document.getElementById('data-aula').value = hoje;
+
         // Desenha a tela passando o ID corretamente
         renderizarChamada(nomeTurma, turmaId);
-        
+
+        await verificarChamadaExistente();
       } catch (err) {
         console.error(err);
         alert("Erro ao buscar alunos. Verifique se o servidor está rodando.");
@@ -219,13 +233,10 @@
     // 3. Função que desenha o HTML dos alunos (Com Bíblias e Revistas)
     function renderizarChamada(nomeTurma, idTurma) {
       turmaAtualId = idTurma; // Guarda o ID Globalmente
-      
+
       document.getElementById('painel-selecao').style.display = 'none';
       document.getElementById('painel-chamada').style.display = 'block';
       document.getElementById('titulo-turma').innerText = nomeTurma;
-
-      const hoje = new Date().toISOString().split('T')[0]; // Pega YYYY-MM-DD
-      document.getElementById('data-aula').value = hoje;
 
       const lista = document.getElementById('lista-alunos');
       lista.innerHTML = '';
@@ -253,11 +264,11 @@
         if (aluno.ativo === false) return; // Filtro de inativos
         const linha = document.createElement('div');
         linha.className = 'grid-chamada'; // <--- USA A MESMA CLASSE DO HEADER
-        
+
         // IDs únicos para os checkboxes
-        const idPresenca = `presenca-${index}`;
-        const idBiblia = `biblia-${index}`;
-        const idRevista = `revista-${index}`;
+        const idPresenca = `presenca-${aluno.id}`;
+        const idBiblia = `biblia-${aluno.id}`;
+        const idRevista = `revista-${aluno.id}`;
 
         linha.innerHTML = `
             <div style="font-weight:bold;">${aluno.nome}</div>
@@ -287,6 +298,8 @@
       const visQtd = parseInt(document.getElementById('vis-qtd').value) || 0;
       const visBiblia = parseInt(document.getElementById('vis-biblia').value) || 0;
       const visRevista = parseInt(document.getElementById('vis-revista').value) || 0;
+      const professor = document.getElementById('nome-professor').value;
+      const obs = document.getElementById('obs-aula').value;
       
       const listaParaEnviar = alunosCarregados
         .filter(a => a.ativo !== false) // Só salva quem está ativo
@@ -303,7 +316,7 @@
               // O ?.checked evita erro se o elemento não for encontrado por algum motivo
               presente: elPresente ? elPresente.checked : false,       
               trouxe_biblia: elBiblia ? elBiblia.checked : false,    
-              trouxe_revista: elRevista ? elRevista.checked : false   
+              trouxe_revista: elRevista ? elRevista.checked : false
             };
         });
 
@@ -325,7 +338,9 @@
                 quantidade: visQtd,
                 biblias: visBiblia,
                 revistas: visRevista
-            }
+            },
+            professor: professor,
+            observacoes: obs
           })
         });
 
@@ -344,6 +359,82 @@
       } finally {
         botao.disabled = false;
         botao.innerText = textoOriginal;
+      }
+    }
+
+    async function verificarChamadaExistente() {
+      const dataSelecionada = document.getElementById('data-aula').value;
+      if (!turmaAtualId || !dataSelecionada) return;
+
+      // Mostra um aviso visual que está carregando (opcional)
+      const btnSalvar = document.querySelector('footer button');
+      btnSalvar.innerText = "Verificando...";
+      btnSalvar.disabled = true;
+
+      try {
+        const res = await fetch(`${API_URL}/chamada/verificar?turma_id=${turmaAtualId}&data=${dataSelecionada}`);
+        const dados = await res.json();
+
+        if (dados.encontrada) {
+          // --- MODO EDIÇÃO: Preenche tudo ---
+          alert(`📅 Encontramos uma chamada salva para ${dataSelecionada}. Os dados foram carregados.`);
+
+          // 1. Preenche rodapé (Oferta, Prof, Obs)
+          document.getElementById('valor-oferta').value = dados.oferta_total;
+          document.getElementById('nome-professor').value = dados.professor || "";
+          document.getElementById('obs-aula').value = dados.observacoes || "";
+
+          // 2. Preenche Visitantes'
+          const vis = dados.resumo.visitantes || {};
+          document.getElementById('vis-qtd').value = vis.quantidade || 0;
+          document.getElementById('vis-biblia').value = vis.biblias || 0;
+          document.getElementById('vis-revista').value = vis.revistas || 0;
+
+          // 3. O Pulo do Gato: Mesclar a lista de alunos atual com as marcas salvas
+          // A lista 'alunosCarregados' tem os alunos da turma. O 'dados.detalhes_alunos' tem quem veio.
+          alunosCarregados.forEach(alunoAtual => {
+            // Tenta achar esse aluno no relatório salvo
+            const alunoSalvo = dados.detalhes_alunos.find(a => String(a.id) === String(alunoAtual.id));
+
+            if (alunoSalvo) {
+              // Se achou, copia os estados
+              alunoAtual.presente = alunoSalvo.presente;
+              alunoAtual.trouxe_biblia = alunoSalvo.trouxe_biblia;
+              alunoAtual.trouxe_revista = alunoSalvo.trouxe_revista;
+            } else {
+              // Se não achou (aluno novo?), reseta
+              alunoAtual.presente = false;
+              alunoAtual.trouxe_biblia = false;
+              alunoAtual.trouxe_revista = false;
+            }
+          });
+
+        } else {
+          document.getElementById('valor-oferta').value = "";
+          document.getElementById('obs-aula').value = "";
+          document.getElementById('nome-professor').value = ""; // Limpa professor também
+
+          document.getElementById('vis-qtd').value = "0";
+          document.getElementById('vis-biblia').value = "0";
+          document.getElementById('vis-revista').value = "0";
+
+          // Reseta todos os alunos da memória para false
+          alunosCarregados.forEach(a => {
+            a.presente = false;
+            a.trouxe_biblia = false;
+            a.trouxe_revista = false;
+          });
+        }
+
+        // 3. O GRAND FINALE: Redesenha a tela baseada na memória atualizada
+        // Como atualizamos o 'alunosCarregados' acima, essa função vai pintar os checkboxes sozinhos
+        const nomeTurma = document.getElementById('titulo-turma').innerText;
+        renderizarChamada(nomeTurma, turmaAtualId);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        btnSalvar.innerText = "Salvar Tudo";
+        btnSalvar.disabled = false;
       }
     }
 

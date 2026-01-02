@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EBD - Financeiro</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css">
+    <style>
+        /* Um CSS extra só para esta página */
+        .card-financeiro {
+            background: #e8f5e9; /* Verde clarinho */
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 1px solid #c8e6c9;
+        }
+
+        .card-financeiro h3 {
+            color: #333333;
+        }
+        .valor-grande {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background-color: #f1f1f1; color: #333333 }
+        .btn-voltar {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background-color: #666;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="index.html" class="btn-voltar">⬅ Voltar para Chamada</a>
+
+    <h1>💰 Painel Financeiro</h1>
+
+    <div class="card-financeiro">
+        <h3>Total Arrecadado (Geral)</h3>
+        <div id="display-total" class="valor-grande">R$ 0,00</div>
+    </div>
+
+    <h3>Histórico por Trimestre</h3>
+    <table>
+        <thead>
+        <tr>
+            <th>Trimestre/Ano</th>
+            <th>Valor Arrecadado</th>
+        </tr>
+        </thead>
+        <tbody id="tabela-meses">
+        <tr><td colspan="2">Carregando dados...</td></tr>
+        </tbody>
+    </table>
+</div>
+<script>
+    const API_URL = '';
+
+    async function carregarFinanceiro() {
+        try {
+            const res = await fetch(`${API_URL}/financeiro/resumo`);
+            const dados = await res.json();
+
+            document.getElementById('display-total').innerText =
+                dados.total_acumulado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+            const tbody = document.getElementById('tabela-meses');
+            tbody.innerHTML = '';
+
+            if (dados.historico.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2">Nenhuma oferta registrada.</td></tr>';
+                return;
+            }
+
+            // Loop atualizado
+            dados.historico.forEach(item => {
+                const tr = document.createElement('tr');
+                const valorFormatado = item.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+                tr.innerHTML = `
+                        <td>${item.periodo}</td> <td style="font-weight:bold; color: #2e7d32;">${valorFormatado}</td>
+                    `;
+                tbody.appendChild(tr);
+            });
+
+        } catch (erro) {
+            console.error(erro);
+            alert('Erro ao carregar dados financeiros.');
+        }
+    }
+
+    carregarFinanceiro();
+</script>
