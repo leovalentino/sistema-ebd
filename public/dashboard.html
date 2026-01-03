@@ -55,26 +55,12 @@
 
   </main>
 
-  <script>
-    const SENHA_ADM = "admin803"; // <--- Senha mais forte para o tesoureiro/pastor
-    
-    const senhaSalvaAdm = localStorage.getItem("senha_adm");
+  <script src="common.js?v=1.0"></script>
 
-    if (senhaSalvaAdm !== SENHA_ADM) {
-      const tentativa = prompt("Área Restrita (Diretoria): Digite a senha:");
-      
-      if (tentativa === SENHA_ADM) {
-        localStorage.setItem("senha_adm", SENHA_ADM);
-      } else {
-        alert("Acesso Negado!");
-        document.body.innerHTML = "<h1 style='text-align:center; margin-top:50px'>🔒 Acesso Restrito à Diretoria</h1>";
-        // Opcional: Redirecionar para a chamada se errar a senha da diretoria
-        setTimeout(() => window.location.href = "index.html", 2000);
-        throw new Error("Parando execução");
-      }
-    }
-    // Se o frontend está na pasta public, a URL base é vazia
-    const API_URL = ''; 
+  <script>
+
+    // Inicia a verificação ao abrir a página
+    verificarAcesso();
 
     async function carregarDashboard() {
       try {
@@ -123,7 +109,7 @@
             const nomeDia = obterDiaSemana(data); // Ex: "Domingo"
 
             let somaMatr = 0, somaPres = 0, somaAus = 0, somaVis = 0;
-            let somaOferta = 0, somaBib = 0, somaRev = 0;
+            let somaOferta = 0, somaBib = 0, somaRev = 0, somaTotalPessoasDia = 0;
 
             grupo.aulas.forEach(aula => {
                 // Extrai os dados de cada aula para somar
@@ -141,6 +127,7 @@
                 somaAus += (matriculados - presentes);
                 somaVis += (vis.quantidade || 0);
                 somaOferta += (aula.oferta_total || 0);
+                somaTotalPessoasDia += (presentes + (vis.quantidade || 0));
                 
                 // Bíblias e Revistas (Soma Membros + Visitantes)
                 somaBib += (aula.resumo.biblias || 0) + (vis.biblias || 0);
@@ -160,7 +147,7 @@
                     <div>
                         <h4>📅 ${data}</h4>
                     </div>
-                    <span class="tag-total" style="background:${somaOferta > 0 ? '#2e7d32' : '#777'}">
+                    <span class="tag-total" style="background:${somaOferta > 50 ? '#2e7d32' : 'red'}">
                         Total % Dia: ${percGeral}
                     </span>
                 </div>
@@ -174,6 +161,7 @@
                             <th title="Total de Ausentes">Aus.</th>
                             <th>% Freq.</th>
                             <th>Visit.</th>
+                            <th title="Soma de Membros + Visitantes" style="background-color:#e8f5e9; color:#1b5e20; border-bottom: 2px solid #4caf50;">Total</th>
                             <th>Oferta</th>
                             <th>Bib/Rev</th>
                         </tr>
@@ -189,6 +177,7 @@
                             const corFreq = parseFloat(percentual) < 50 ? 'red' : '#666';
                             const tBib = (aula.resumo.biblias || 0) + (vis.biblias || 0);
                             const tRev = (aula.resumo.revistas || 0) + (vis.revistas || 0);
+                            const totalPessoasSala = presentes + (vis.quantidade || 0);
 
                             let htmlObs = "";
                             if (aula.observacoes && aula.observacoes.trim() !== "") {
@@ -216,6 +205,9 @@
                                     <td style="text-align:center; color:#d32f2f">${ausentes}</td>
                                     <td style="text-align:center; color:${corFreq}; font-weight:bold">${percentual}%</td>
                                     <td style="text-align:center; background-color:#f0f8ff">${vis.quantidade}</td>
+                                    <td style="text-align:center; font-weight:bold; background-color:#e8f5e9; color:#1b5e20;">
+                                        ${totalPessoasSala}
+                                    </td>
                                     <td style="color:${aula.oferta_total > 0 ? '#1565c0' : '#aaa'}">${formatarMoeda(aula.oferta_total)}</td>
                                     <td style="text-align:center; font-size:0.8rem">📖 ${tBib}<br>📘 ${tRev}</td>
                                 </tr>

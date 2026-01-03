@@ -48,8 +48,11 @@
 
   </main>
 
+  <script src="common.js?v=1.0"></script>
+
   <script>
-    const API_URL = '';
+    // Inicia a verificação ao abrir a página
+    verificarAcesso();
 
     // 1. Carregar Turmas para o Select
     async function carregarTurmas() {
@@ -96,6 +99,7 @@
         if (resposta.ok) {
           alert(`✅ ${nome} cadastrado com sucesso!`);
           document.getElementById('nome-aluno').value = ''; // Limpa o campo
+          listarAlunosParaEdicao();
         } else {
           alert("Erro ao cadastrar.");
         }
@@ -135,7 +139,6 @@
       }
     }
 
-    // Substitua a função listarAlunosParaEdicao por esta versão completa:
     async function listarAlunosParaEdicao() {
       const turmaId = document.getElementById('select-turmas').value;
       if (!turmaId) return;

@@ -43,6 +43,32 @@ app.use(express.static('public'));
 // Rota 1: Teste
 app.get('/', (req, res) => res.send('API Online'));
 
+app.post('/auth/login', (req, res) => {
+  const { senha } = req.body; // O frontend envia a senha digitada
+
+  // O Backend compara com a variável secreta do .env
+  const senhaCorreta = process.env.SENHA_ADM;
+
+  if (senha === senhaCorreta) {
+    res.json({ sucesso: true });
+  } else {
+    res.status(401).json({ sucesso: false, mensagem: "Senha incorreta" });
+  }
+});
+
+app.post('/auth/login-usr', (req, res) => {
+  const { senha } = req.body; // O frontend envia a senha digitada
+
+  // O Backend compara com a variável secreta do .env
+  const senhaCorreta = process.env.SENHA_USR;
+
+  if (senha === senhaCorreta) {
+    res.json({ sucesso: true });
+  } else {
+    res.status(401).json({ sucesso: false, mensagem: "Senha incorreta" });
+  }
+});
+
 // Rota 2: Listar Turmas
 app.get('/turmas', async (req, res) => {
   const snapshot = await db.collection('turmas').get();
