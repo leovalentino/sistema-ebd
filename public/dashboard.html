@@ -147,8 +147,8 @@
                     <div>
                         <h4>📅 ${data}</h4>
                     </div>
-                    <span class="tag-total" style="background:${somaOferta > 50 ? '#2e7d32' : 'red'}">
-                        Total % Dia: ${percGeral}
+                    <span class="tag-total" style="background:${percGeral > 50 ? '#2e7d32' : 'red'}">
+                        Total % de presentes Dia: ${percGeral}
                     </span>
                 </div>
                 
@@ -223,6 +223,9 @@
                             <td style="text-align:center; color:#d32f2f">${somaAus}</td>
                             <td style="text-align:center; color:${corPercGeral}">${percGeral}%</td>
                             <td style="text-align:center; background-color:#e3f2fd">${somaVis}</td>
+                            <td style="text-align:center; background-color:#c8e6c9; color:#1b5e20; font-size: 1.1em;">
+                                ${somaTotalPessoasDia}
+                            </td>
                             <td style="color:#1565c0">${formatarMoeda(somaOferta)}</td>
                             <td style="text-align:center; font-size:0.8rem">
                                 📖 ${somaBib}<br>📘 ${somaRev}

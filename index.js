@@ -100,7 +100,6 @@ app.post('/alunos', async (req, res) => {
 app.get('/turmas/:turmaId/alunos', async (req, res) => {
   try {
     const turmaId = req.params.turmaId;
-    console.log("Buscando alunos da turma:", turmaId); // Adicionei esse log para te ajudar
 
     const snapshot = await db.collection('alunos')
       .where('turma_id', '==', turmaId)

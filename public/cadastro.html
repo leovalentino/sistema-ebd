@@ -160,7 +160,7 @@
       
       if (alunos.length === 0) areaLista.innerHTML += '<p>Sem alunos.</p>';
 
-      alunos.forEach(aluno => {
+      alunos.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(aluno => {
        if (aluno.ativo === false) return; 
 
         const linha = document.createElement('div');
