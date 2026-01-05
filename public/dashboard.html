@@ -397,7 +397,6 @@
                                     <strong>${mapaTurmas[aula.turma_id] || 'Turma Desconhecida'}</strong>
                                     ${nomeProf}
                                     <div style="margin-top:5px">
-                                        <small style="margin-right: 5em" class="delete-btn" onclick="excluirRelatorio('${aula.id}')">[x] Excluir</small>
                                         ${htmlObsAula}
                                     </div>
                                 </td>
@@ -464,23 +463,6 @@
 
   function formatarMoeda(valor) {
     return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  }
-
-  async function excluirRelatorio(id) {
-    const resposta = prompt("⚠️ ZONA DE PERIGO ⚠️\n\nDigite DELETAR para confirmar a exclusão:");
-    if (resposta !== "DELETAR") return;
-
-    try {
-      const res = await fetch(`${API_URL}/relatorios/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        alert("Relatório apagado com sucesso.");
-        carregarDashboard();
-      } else {
-        alert("Erro ao apagar no servidor.");
-      }
-    } catch (e) {
-      alert("Erro de conexão.");
-    }
   }
 
   async function abrirPanel(data) {
