@@ -337,12 +337,16 @@
         const divGrupo = document.createElement('div');
         divGrupo.className = 'grupo-data';
 
+        const textoBotao = infoDia.secretario
+                ? "✏️ Editar Relatório"
+                : "📁 Fechar Relatório";
+
         divGrupo.innerHTML = `
             <div class="header-data">
                 <div class="titulo-dia">
                    <span>📅</span>
                    <span>${data}</span>
-                   <button class="btn-sm" onclick="abrirPanel('${data}')">📁 Fechar Relatório</button>
+                   <button class="btn-sm" onclick="abrirPanel('${data}')">${textoBotao}</button>
                 </div>
                 <span class="tag-total" style="background:${percGeral > 50 ? '#2e7d32' : '#d32f2f'}">
                    Total % Presença: ${percGeral}
