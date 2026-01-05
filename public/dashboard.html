@@ -384,7 +384,7 @@
                   : "";
 
           let htmlObsAula = aula.observacoes
-                  ? `<span tabindex="0" data-tooltip="${aula.observacoes.replace(/"/g, '&quot;')}">📝</span>`
+                  ? `<span tabindex="0" data-tooltip="${aula.observacoes.replace(/"/g, '&quot;')}">ℹ️</span>`
                   : "";
 
           return `
@@ -393,7 +393,7 @@
                                     <strong>${mapaTurmas[aula.turma_id] || 'Turma Desconhecida'}</strong>
                                     ${nomeProf}
                                     <div style="margin-top:5px">
-                                        <small class="delete-btn" onclick="excluirRelatorio('${aula.id}')">[x] Excluir</small>
+                                        <small style="margin-right: 5em" class="delete-btn" onclick="excluirRelatorio('${aula.id}')">[x] Excluir</small>
                                         ${htmlObsAula}
                                     </div>
                                 </td>
