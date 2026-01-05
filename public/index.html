@@ -5,9 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>EBD Webview</title>
   <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css">
-  
+
   <style>
-    body { padding: 10px; padding-bottom: 80px; }
     /* Estilo para a linha do aluno ficar clicável */
     .aluno-row {
       display: flex;
@@ -23,7 +22,7 @@
     .grid-chamada {
       display: grid;
       /* 1ª coluna (Nome): Flexível | 2ª, 3ª, 4ª colunas: 60px fixos */
-      grid-template-columns: 1fr 60px 60px 60px; 
+      grid-template-columns: 1fr 60px 60px 60px;
       gap: 10px;
       align-items: center;
       padding: 10px 0;
@@ -75,13 +74,13 @@
     @media (max-width: 600px) {
       .grid-chamada {
         /* Diminui um pouco as colunas no celular */
-        grid-template-columns: 1fr 40px 40px 40px; 
+        grid-template-columns: 1fr 40px 40px 40px;
         gap: 5px;
       }
-      
+
       /* Esconde o texto e mostra ícones ou abreviações no celular se precisar */
       .header-label {
-        font-size: 0.65rem; 
+        font-size: 0.65rem;
         overflow: hidden;
         text-overflow: ellipsis;
       }
@@ -109,7 +108,7 @@
       <header>
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <h5 id="titulo-turma" style="margin:0">Chamada</h5>
-          <button onclick="location.reload()" class="secondary outline" style="width: auto; padding: 5px 10px; font-size: 0.8rem">Voltar</button>
+          <button onclick="location.reload()" role="button" class="outline" style="width: auto; padding: 5px 10px; font-size: 0.8rem">Voltar</button>
         </div>
       </header>
 
@@ -117,7 +116,7 @@
         <label>Data da Aula</label>
         <input type="date" id="data-aula" style="margin-bottom: 20px;" onchange="verificarChamadaExistente()">
       </section>
-      
+
       <div id="lista-alunos"></div>
 
       <section style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 8px; border: 1px dashed #aaa;">
@@ -149,7 +148,7 @@
 
         <label>Observações / Ocorrências</label>
         <textarea id="obs-aula" rows="2" placeholder="Ex: Tivemos R$10,00 de oferta em PIX"></textarea>
-        
+
         <button onclick="salvarChamadaDefinitiva()">Salvar Tudo</button>
       </footer>
     </article>
@@ -162,7 +161,7 @@
     verificarAcessoUsr();
     // Variáveis Globais
     let alunosCarregados = [];
-    let turmaAtualId = ""; 
+    let turmaAtualId = "";
 
     // 1. Carregar Turmas ao abrir a tela
     async function carregarTurmas() {
@@ -170,7 +169,7 @@
         const resposta = await fetch(`${API_URL}/turmas`);
         const turmas = await resposta.json();
         const select = document.getElementById('select-turmas');
-        
+
         select.innerHTML = '<option value="" disabled selected>Escolha uma turma</option>';
         turmas.forEach(turma => {
           select.innerHTML += `<option value="${turma.id}">${turma.nome}</option>`;
@@ -282,7 +281,7 @@
       const visRevista = parseInt(document.getElementById('vis-revista').value) || 0;
       const professor = document.getElementById('nome-professor').value;
       const obs = document.getElementById('obs-aula').value;
-      
+
       const listaParaEnviar = alunosCarregados
         .filter(a => a.ativo !== false) // Só salva quem está ativo
         .map(aluno => {
@@ -296,8 +295,8 @@
               id: aluno.id,
               nome: aluno.nome,
               // O ?.checked evita erro se o elemento não for encontrado por algum motivo
-              presente: elPresente ? elPresente.checked : false,       
-              trouxe_biblia: elBiblia ? elBiblia.checked : false,    
+              presente: elPresente ? elPresente.checked : false,
+              trouxe_biblia: elBiblia ? elBiblia.checked : false,
               trouxe_revista: elRevista ? elRevista.checked : false
             };
         });
@@ -327,10 +326,10 @@
         });
 
         const dados = await resposta.json();
-        
+
         if (dados.sucesso) {
           alert("✅ Chamada salva com sucesso!");
-          location.reload(); 
+          location.reload();
         } else {
           alert("Erro ao salvar: " + (dados.erro || "Desconhecido"));
         }
