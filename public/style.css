@@ -312,37 +312,8 @@ tfoot {
 }
 .btn-sm:hover { background-color: var(--secondary-hover); }
 
-/* --- Tooltip CSS Puro --- */
-.tooltip-container {
-    position: relative;
-    display: inline-block;
-    cursor: help;
-}
-
-.tooltip-container::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: 125%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #333;
-    color: #fff;
-    text-align: center;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    width: max-content;
-    max-width: 200px;
-    z-index: 1000;
-    visibility: hidden; opacity: 0;
-    transition: opacity 0.2s;
-    pointer-events: none;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-}
-
-.tooltip-container:hover::after,
-.tooltip-container:focus::after {
-    visibility: visible; opacity: 1;
+[data-tooltip]::before {
+    left: 100px;
 }
 
 /* =========================================

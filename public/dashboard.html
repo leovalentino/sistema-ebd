@@ -329,7 +329,7 @@
         let htmlClima = infoDia.clima ? `<span>${infoDia.clima}</span>` : "";
         let htmlSec = infoDia.secretario ? `<span>👤 <b>Sec:</b> ${infoDia.secretario}</span>` : "";
         let htmlObs = infoDia.observacoes
-                ? `<span class="tooltip-container" tabindex="0" data-tooltip="${infoDia.observacoes.replace(/"/g, '&quot;')}">📝 (Ler Obs)</span>`
+                ? `<span tabindex="0" data-tooltip="${infoDia.observacoes.replace(/"/g, '&quot;')}">📝 (Ler Obs)</span>`
                 : "";
 
         if(!htmlClima && !htmlSec && !htmlObs) htmlClima = "<small><i>Sem detalhes extras</i></small>";
@@ -384,7 +384,7 @@
                   : "";
 
           let htmlObsAula = aula.observacoes
-                  ? `<span class="tooltip-container" tabindex="0" data-tooltip="${aula.observacoes.replace(/"/g, '&quot;')}">📝</span>`
+                  ? `<span tabindex="0" data-tooltip="${aula.observacoes.replace(/"/g, '&quot;')}">📝</span>`
                   : "";
 
           return `
