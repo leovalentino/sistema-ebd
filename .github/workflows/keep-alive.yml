@@ -7,7 +7,7 @@ on:
     # Brasil (Brasília) é UTC-3.
     # Queremos Domingo 09:00 às 11:00 BRT -> Domingo 12:00 às 14:00 UTC
     # Vamos rodar a cada 10 minutos entre 12h e 14h UTC
-    - cron: '*/14 12-14 * * 0'
+    - cron: '*/14 12-14 * * 6'
 
 jobs:
   ping_site:
