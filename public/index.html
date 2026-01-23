@@ -239,8 +239,8 @@
 
       // Cabeçalho
       const header = document.createElement('div');
-      // Adiciona a classe para o cabeçalho sticky
-      header.className = 'grid-chamada grid-chamada-header-sticky';
+      header.className = 'grid-chamada'; // <--- Mesma classe das linhas
+      header.style.borderBottom = "2px solid #ccc"; // Destaque visual
       header.innerHTML = `
           <div></div>
           <div class="col-center header-label">Bíblia</div>

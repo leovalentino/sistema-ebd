@@ -196,42 +196,6 @@ tfoot {
     font-weight: 800;
 }
 
-/* Estilo para o cabeçalho da grade de chamada ficar fixo */
-.grid-chamada-header-sticky {
-    position: sticky;
-    top: 0;
-    z-index: 10; /* Z-index alto para garantir sobreposição */
-    background-color: var(--dark-bg); /* Fundo igual ao do corpo da página (dark mode) */
-    color: var(--sidebar-text); /* Cor do texto para contraste com fundo escuro */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Sombra sutil na borda inferior */
-    padding: 10px 0; /* Ajuste para não ficar colado e consistente com .grid-chamada */
-    border-bottom: none; /* Remove a borda inferior padrão do .grid-chamada */
-
-    /* Garante que o layout de grid é aplicado ao cabeçalho sticky */
-    display: grid;
-    grid-template-columns: 1fr 60px 60px 60px 60px; /* Desktop default */
-    gap: 10px; /* Desktop default */
-    align-items: center;
-}
-
-/* Ajustes para labels dentro do cabeçalho sticky para contraste */
-.grid-chamada-header-sticky .header-label {
-    color: var(--sidebar-text); /* Garante que os labels sejam visíveis no fundo escuro */
-}
-
-/* Responsividade para o cabeçalho sticky no mobile */
-@media (max-width: 600px) {
-  .grid-chamada-header-sticky {
-    grid-template-columns: 1fr 40px 40px 40px 40px; /* Ajusta colunas como .grid-chamada no mobile */
-    gap: 5px; /* Ajusta gap como .grid-chamada no mobile */
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
-  .grid-chamada-header-sticky .header-label {
-      font-size: 0.7rem; /* Ajuste para melhor legibilidade no mobile com fundo escuro */
-  }
-}
-
 /* =========================================
    5. DRAWER (PAINEL LATERAL DIREITO)
    ========================================= */
