@@ -21,8 +21,8 @@
 
     .grid-chamada {
       display: grid;
-      /* 1ª coluna (Nome): Flexível | 2ª, 3ª, 4ª colunas: 60px fixos */
-      grid-template-columns: 1fr 60px 60px 60px;
+      /* 1ª coluna (Nome): Flexível | 2ª, 3ª, 4ª, 5ª colunas: 60px fixos */
+      grid-template-columns: 1fr 60px 60px 60px 60px;
       gap: 10px;
       align-items: center;
       padding: 10px 0;
@@ -74,7 +74,7 @@
     @media (max-width: 600px) {
       .grid-chamada {
         /* Diminui um pouco as colunas no celular */
-        grid-template-columns: 1fr 40px 40px 40px;
+        grid-template-columns: 1fr 40px 40px 40px 40px;
         gap: 5px;
       }
 
@@ -236,11 +236,19 @@
       header.className = 'grid-chamada'; // <--- Mesma classe das linhas
       header.style.borderBottom = "2px solid #ccc"; // Destaque visual
       header.innerHTML = `
-          <div></div> <div class="col-center header-label">Bíblia</div>
+          <div></div>
+          <div class="col-center header-label">Bíblia</div>
           <div class="col-center header-label">Revista</div>
           <div class="col-center header-label">Pres.</div>
+          <div class="col-center header-label" title="Falta Justificada" style="cursor:help;">Justif. <span style="font-size:0.7rem; color:#1565c0;">ℹ️</span></div>
       `;
       lista.appendChild(header);
+
+      // Aviso explicativo sobre falta justificada
+      const aviso = document.createElement('div');
+      aviso.style.cssText = 'background:#fff3e0; border-left:3px solid #ff9800; padding:8px 12px; margin-bottom:10px; font-size:0.8rem; color:#e65100; border-radius:4px;';
+      aviso.innerHTML = '<strong>Justif.:</strong> Marque apenas para alunos <u>ausentes</u> com falta justificada (ex: doença, viagem). Faltas justificadas não contam negativamente no relatório de frequência.';
+      lista.appendChild(aviso);
 
       // Lista de Alunos
       alunosCarregados.sort((a, b) => a.nome.localeCompare(b.nome)).forEach((aluno, index) => {
@@ -254,6 +262,11 @@
         const idPresenca = `presenca-${aluno.id}`;
         const idBiblia = `biblia-${aluno.id}`;
         const idRevista = `revista-${aluno.id}`;
+        const idJustificada = `justificada-${aluno.id}`;
+
+        // Justificativa só pode ser marcada se NÃO estiver presente
+        const justificadaDisabled = aluno.presente ? 'disabled' : '';
+        const justificadaChecked = aluno.falta_justificada && !aluno.presente ? 'checked' : '';
 
         linha.innerHTML = `
             <div style="font-weight:bold;">${aluno.nome}</div>
@@ -267,11 +280,32 @@
             </div>
 
             <div class="col-center">
-                <input type="checkbox" id="${idPresenca}" ${aluno.presente ? 'checked' : ''}>
+                <input type="checkbox" id="${idPresenca}" ${aluno.presente ? 'checked' : ''} onchange="toggleJustificativa('${aluno.id}')">
+            </div>
+
+            <div class="col-center">
+                <input type="checkbox" id="${idJustificada}" ${justificadaChecked} ${justificadaDisabled} title="Falta Justificada">
             </div>
         `;
         lista.appendChild(linha);
       });
+    }
+
+    // Função para habilitar/desabilitar checkbox de justificativa
+    function toggleJustificativa(alunoId) {
+      const elPresenca = document.getElementById(`presenca-${alunoId}`);
+      const elJustificada = document.getElementById(`justificada-${alunoId}`);
+
+      if (elPresenca && elJustificada) {
+        if (elPresenca.checked) {
+          // Se presente, desabilita e desmarca justificativa
+          elJustificada.checked = false;
+          elJustificada.disabled = true;
+        } else {
+          // Se ausente, habilita justificativa
+          elJustificada.disabled = false;
+        }
+      }
     }
 
     // 4. Função de Salvar no Banco
@@ -294,14 +328,19 @@
             const elPresente = document.getElementById(`presenca-${aluno.id}`);
             const elBiblia = document.getElementById(`biblia-${aluno.id}`);
             const elRevista = document.getElementById(`revista-${aluno.id}`);
+            const elJustificada = document.getElementById(`justificada-${aluno.id}`);
+
+            const presente = elPresente ? elPresente.checked : false;
 
             return {
               id: aluno.id,
               nome: aluno.nome,
               // O ?.checked evita erro se o elemento não for encontrado por algum motivo
-              presente: elPresente ? elPresente.checked : false,
+              presente: presente,
               trouxe_biblia: elBiblia ? elBiblia.checked : false,
-              trouxe_revista: elRevista ? elRevista.checked : false
+              trouxe_revista: elRevista ? elRevista.checked : false,
+              // Falta justificada só conta se NÃO estiver presente
+              falta_justificada: !presente && elJustificada ? elJustificada.checked : false
             };
         });
 
@@ -386,11 +425,13 @@
               alunoAtual.presente = alunoSalvo.presente;
               alunoAtual.trouxe_biblia = alunoSalvo.trouxe_biblia;
               alunoAtual.trouxe_revista = alunoSalvo.trouxe_revista;
+              alunoAtual.falta_justificada = alunoSalvo.falta_justificada || false;
             } else {
               // Se não achou (aluno novo?), reseta
               alunoAtual.presente = false;
               alunoAtual.trouxe_biblia = false;
               alunoAtual.trouxe_revista = false;
+              alunoAtual.falta_justificada = false;
             }
           });
 
@@ -408,6 +449,7 @@
             a.presente = false;
             a.trouxe_biblia = false;
             a.trouxe_revista = false;
+            a.falta_justificada = false;
           });
         }
 

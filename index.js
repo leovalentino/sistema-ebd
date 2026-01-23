@@ -420,26 +420,39 @@ app.get('/relatorios/frequencia', async (req, res) => {
               turma_id: turmaId,
               turma_nome: mapaTurmas[turmaId] || 'Turma Desconhecida',
               presencas: 0,
+              faltas: 0,
+              faltas_justificadas: 0,
               total_aulas: 0
             };
           }
 
           frequenciaPorAluno[chave].total_aulas++;
+
           if (aluno.presente) {
             frequenciaPorAluno[chave].presencas++;
+          } else if (aluno.falta_justificada) {
+            // Falta justificada: neutra no cálculo de percentual
+            frequenciaPorAluno[chave].faltas_justificadas++;
+          } else {
+            // Falta normal
+            frequenciaPorAluno[chave].faltas++;
           }
         });
       }
     });
 
     // Converte para array e calcula percentual
+    // O percentual considera apenas aulas sem falta justificada (presencas / (total - justificadas))
     const ranking = Object.values(frequenciaPorAluno)
-      .map(aluno => ({
-        ...aluno,
-        percentual: aluno.total_aulas > 0
-          ? ((aluno.presencas / aluno.total_aulas) * 100).toFixed(2)
-          : "0.00"
-      }))
+      .map(aluno => {
+        const aulasContabilizadas = aluno.total_aulas - aluno.faltas_justificadas;
+        return {
+          ...aluno,
+          percentual: aulasContabilizadas > 0
+            ? ((aluno.presencas / aulasContabilizadas) * 100).toFixed(2)
+            : "0.00"
+        };
+      })
       .sort((a, b) => b.presencas - a.presencas); // Ordena por número de presenças (desc)
 
     res.json({

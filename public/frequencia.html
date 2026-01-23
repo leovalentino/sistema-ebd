@@ -84,6 +84,7 @@
     .text-green { color: #2e7d32; }
     .text-red { color: #d32f2f; }
     .text-blue { color: #1565c0; }
+    .text-orange { color: #f57c00; }
 
     .posicao {
       font-weight: bold;
@@ -101,6 +102,15 @@
       border-radius: 12px;
       font-size: 0.8rem;
       white-space: nowrap;
+    }
+
+    .badge-justificada {
+      background: #fff3e0;
+      color: #e65100;
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 500;
     }
 
     .percentual-bar {
@@ -334,6 +344,8 @@
             <th>Aluno</th>
             <th>Turma</th>
             <th class="text-center">Presenças</th>
+            <th class="text-center">Faltas</th>
+            <th class="text-center" title="Faltas Justificadas (não contam no cálculo)">Justif.</th>
             <th class="text-center">Aulas</th>
             <th>% Frequência</th>
           </tr>
@@ -365,12 +377,22 @@
         classPercentual = 'percentual-medium';
       }
 
+      const faltas = aluno.faltas || 0;
+      const faltasJustificadas = aluno.faltas_justificadas || 0;
+
+      // Indicador visual para quem tem faltas justificadas
+      const badgeJustif = faltasJustificadas > 0
+        ? `<span class="badge-justificada" title="${faltasJustificadas} falta(s) justificada(s)">${faltasJustificadas}</span>`
+        : '<span style="color:#aaa">0</span>';
+
       html += `
         <tr>
           <td class="text-center posicao ${classPosicao}">${posicao}${medalha}</td>
           <td><strong>${aluno.nome}</strong></td>
           <td><span class="badge-turma">${aluno.turma_nome}</span></td>
           <td class="text-center text-green"><strong>${aluno.presencas}</strong></td>
+          <td class="text-center text-red">${faltas}</td>
+          <td class="text-center">${badgeJustif}</td>
           <td class="text-center">${aluno.total_aulas}</td>
           <td>
             <span class="percentual-bar">

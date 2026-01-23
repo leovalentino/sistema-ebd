@@ -104,6 +104,16 @@
     .obs-icon { cursor: help; font-size: 1rem; }
     .delete-btn { color: red; cursor: pointer; font-size: 0.7rem; margin-right: 5px; }
 
+    .badge-justificada {
+      background: #fff3e0;
+      color: #e65100;
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      margin-left: 4px;
+    }
+
     /* --- Drawer (Painel Lateral) --- */
     .drawer-overlay {
       position: fixed;
@@ -295,7 +305,15 @@
       });
 
       area.innerHTML = '';
-      const datas = Object.keys(grupos);
+      // Ordena as datas do mais recente para o mais antigo
+      // Converte DD/MM/YYYY para formato comparável
+      const datas = Object.keys(grupos).sort((a, b) => {
+        const [diaA, mesA, anoA] = a.split('/');
+        const [diaB, mesB, anoB] = b.split('/');
+        const dataA = new Date(anoA, mesA - 1, diaA);
+        const dataB = new Date(anoB, mesB - 1, diaB);
+        return dataB - dataA; // Mais recente primeiro
+      });
 
       if (datas.length === 0) {
         area.innerHTML = '<p>Nenhum relatório encontrado.</p>';
@@ -385,6 +403,9 @@
           const tRev = (aula.resumo.revistas || 0) + (vis.revistas || 0);
           const totalPessoasSala = presentes + (vis.quantidade || 0);
 
+          // Conta faltas justificadas para exibir flag
+          const faltasJustificadas = (aula.detalhes_alunos || []).filter(a => !a.presente && a.falta_justificada).length;
+
           const nomeProf = aula.professor && aula.professor !== "Não informado"
                   ? `<div class="prof-info">Prof. ${aula.professor}</div>`
                   : "";
@@ -393,13 +414,18 @@
                   ? `<span tabindex="0" data-tooltip="${aula.observacoes.replace(/"/g, '&quot;')}">ℹ️</span>`
                   : "";
 
+          // Badge para faltas justificadas (apenas visual)
+          const badgeJustif = faltasJustificadas > 0
+                  ? `<span class="badge-justificada" title="${faltasJustificadas} falta(s) justificada(s)">${faltasJustificadas} just.</span>`
+                  : "";
+
           return `
                             <tr>
                                 <td>
                                     <strong>${mapaTurmas[aula.turma_id] || 'Turma Desconhecida'}</strong>
                                     ${nomeProf}
                                     <div style="margin-top:5px">
-                                        ${htmlObsAula}
+                                        ${htmlObsAula} ${badgeJustif}
                                     </div>
                                 </td>
                                 <td class="text-center">${matriculados}</td>
