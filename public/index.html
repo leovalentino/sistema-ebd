@@ -70,30 +70,12 @@
       font-weight: bold;
     }
 
-    /* Estilo para o cabeçalho da grade de chamada ficar fixo */
-    .grid-chamada-header {
-      position: sticky;
-      top: 0; /* Fixa no topo */
-      z-index: 1; /* Garante que fique acima do conteúdo */
-      background-color: #f8f9fa; /* Cor de fundo para não ser transparente */
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Sombra para destacar */
-      border-bottom: 2px solid #ccc !important; /* Mantém a borda */
-      padding-top: 5px; /* Ajuste de padding para não ficar colado */
-      padding-bottom: 5px; /* Ajuste de padding para não ficar colado */
-    }
-
     /* RESPONSIVIDADE (Celular) */
     @media (max-width: 600px) {
       .grid-chamada {
         /* Diminui um pouco as colunas no celular */
         grid-template-columns: 1fr 40px 40px 40px 40px;
         gap: 5px;
-      }
-
-      /* Ajuste para o cabeçalho sticky no mobile */
-      .grid-chamada-header {
-          padding-top: 10px;
-          padding-bottom: 10px;
       }
 
       /* Esconde o texto e mostra ícones ou abreviações no celular se precisar */
@@ -257,8 +239,8 @@
 
       // Cabeçalho
       const header = document.createElement('div');
-      // Adiciona a classe específica para o cabeçalho sticky
-      header.className = 'grid-chamada grid-chamada-header';
+      header.className = 'grid-chamada'; // <--- Mesma classe das linhas
+      header.style.borderBottom = "2px solid #ccc"; // Destaque visual
       header.innerHTML = `
           <div></div>
           <div class="col-center header-label">Bíblia</div>
