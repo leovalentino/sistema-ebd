@@ -176,14 +176,11 @@ table {
 }
 
 th {
-    background-color: #e0e0e0; /* Garante fundo não transparente */
+    background-color: #e0e0e0;
     color: #111;
     padding: 12px 10px;
     text-align: left;
     font-weight: 600;
-    position: sticky; /* Torna o cabeçalho fixo */
-    top: 0; /* Fixa no topo do contêiner de rolagem */
-    z-index: 1; /* Garante que o cabeçalho fique acima do conteúdo da tabela */
 }
 
 td {
