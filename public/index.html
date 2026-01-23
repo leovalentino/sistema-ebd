@@ -231,6 +231,12 @@
         return;
       }
 
+      // Aviso explicativo sobre falta justificada
+      const aviso = document.createElement('div');
+      aviso.style.cssText = 'background:#fff3e0; border-left:3px solid #ff9800; padding:8px 12px; margin-bottom:10px; font-size:0.8rem; color:#e65100; border-radius:4px;';
+      aviso.innerHTML = '<strong>Justif.:</strong> Marque apenas para alunos <u>ausentes</u> com falta justificada (ex: doença, viagem).';
+      lista.appendChild(aviso);
+
       // Cabeçalho
       const header = document.createElement('div');
       header.className = 'grid-chamada'; // <--- Mesma classe das linhas
@@ -240,15 +246,9 @@
           <div class="col-center header-label">Bíblia</div>
           <div class="col-center header-label">Revista</div>
           <div class="col-center header-label">Pres.</div>
-          <div class="col-center header-label" title="Falta Justificada" style="cursor:help;">Justif. <span style="font-size:0.7rem; color:#1565c0;">ℹ️</span></div>
+          <div class="col-center header-label" title="Falta Justificada" style="cursor:help;">Justif. <span style="font-size:0.7rem; color:#1565c0;">️</span></div>
       `;
       lista.appendChild(header);
-
-      // Aviso explicativo sobre falta justificada
-      const aviso = document.createElement('div');
-      aviso.style.cssText = 'background:#fff3e0; border-left:3px solid #ff9800; padding:8px 12px; margin-bottom:10px; font-size:0.8rem; color:#e65100; border-radius:4px;';
-      aviso.innerHTML = '<strong>Justif.:</strong> Marque apenas para alunos <u>ausentes</u> com falta justificada (ex: doença, viagem). Faltas justificadas não contam negativamente no relatório de frequência.';
-      lista.appendChild(aviso);
 
       // Lista de Alunos
       alunosCarregados.sort((a, b) => a.nome.localeCompare(b.nome)).forEach((aluno, index) => {
