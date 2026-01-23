@@ -70,6 +70,20 @@
       font-weight: bold;
     }
 
+    /* Estilo para o cabeçalho sticky da grade de chamada */
+    .grid-chamada-header-sticky {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: #11191f; /* Fundo escuro (dark mode) */
+      color: #f8fafc; /* Texto claro para contraste */
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    .grid-chamada-header-sticky .header-label {
+      color: #f8fafc;
+    }
+
     /* RESPONSIVIDADE (Celular) */
     @media (max-width: 600px) {
       .grid-chamada {

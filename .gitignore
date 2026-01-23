@@ -13,3 +13,4 @@ node_modules/
 
 # Se você tiver um arquivo ..env
 .env
+.aider*
