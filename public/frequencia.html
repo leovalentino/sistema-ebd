@@ -368,17 +368,18 @@
         <tbody>
     `;
 
-    let posicaoReal = 0;
+    let posicaoExibida = 0;
     let ultimaPresenca = -1;
 
     dadosOrdenados.forEach((aluno, index) => {
       // Lógica de empate: se tiver a mesma quantidade de presenças que o anterior, mantém a posição
+      // Se for diferente, incrementa a posição exibida (Ranking denso: 1, 1, 2...)
       if (aluno.presencas !== ultimaPresenca) {
-        posicaoReal = index + 1;
+        posicaoExibida++;
         ultimaPresenca = aluno.presencas;
       }
 
-      const posicao = posicaoReal;
+      const posicao = posicaoExibida;
       let classPosicao = '';
       let medalha = '';
 
