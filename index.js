@@ -369,6 +369,91 @@ app.get('/diario', async (req, res) => {
   }
 });
 
+// Rota: Relatório de Frequência por Aluno (Ranking)
+app.get('/relatorios/frequencia', async (req, res) => {
+  try {
+    const { data_inicio, data_fim } = req.query;
+
+    if (!data_inicio || !data_fim) {
+      return res.status(400).json({ erro: "Parâmetros data_inicio e data_fim são obrigatórios" });
+    }
+
+    // Converte para Timestamps do Firebase
+    const startTimestamp = admin.firestore.Timestamp.fromDate(new Date(data_inicio + "T00:00:00"));
+    const endTimestamp = admin.firestore.Timestamp.fromDate(new Date(data_fim + "T23:59:59"));
+
+    // Busca relatórios no intervalo de datas
+    const snapshot = await db.collection('relatorios_aula')
+      .where('data_aula', '>=', startTimestamp)
+      .where('data_aula', '<=', endTimestamp)
+      .get();
+
+    // Busca turmas para mapear nomes
+    const turmasSnapshot = await db.collection('turmas').get();
+    const mapaTurmas = {};
+    turmasSnapshot.forEach(doc => mapaTurmas[doc.id] = doc.data().nome);
+
+    // Agrega dados por aluno
+    const frequenciaPorAluno = {};
+    let totalAulas = 0;
+    const aulasPorTurma = {}; // Para contar aulas por turma
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const turmaId = data.turma_id;
+
+      // Conta aulas por turma
+      if (!aulasPorTurma[turmaId]) {
+        aulasPorTurma[turmaId] = 0;
+      }
+      aulasPorTurma[turmaId]++;
+
+      // Processa cada aluno
+      if (data.detalhes_alunos && Array.isArray(data.detalhes_alunos)) {
+        data.detalhes_alunos.forEach(aluno => {
+          const chave = aluno.id;
+
+          if (!frequenciaPorAluno[chave]) {
+            frequenciaPorAluno[chave] = {
+              id: aluno.id,
+              nome: aluno.nome,
+              turma_id: turmaId,
+              turma_nome: mapaTurmas[turmaId] || 'Turma Desconhecida',
+              presencas: 0,
+              total_aulas: 0
+            };
+          }
+
+          frequenciaPorAluno[chave].total_aulas++;
+          if (aluno.presente) {
+            frequenciaPorAluno[chave].presencas++;
+          }
+        });
+      }
+    });
+
+    // Converte para array e calcula percentual
+    const ranking = Object.values(frequenciaPorAluno)
+      .map(aluno => ({
+        ...aluno,
+        percentual: aluno.total_aulas > 0
+          ? ((aluno.presencas / aluno.total_aulas) * 100).toFixed(2)
+          : "0.00"
+      }))
+      .sort((a, b) => b.presencas - a.presencas); // Ordena por número de presenças (desc)
+
+    res.json({
+      periodo: { inicio: data_inicio, fim: data_fim },
+      total_relatorios: snapshot.size,
+      ranking: ranking
+    });
+
+  } catch (erro) {
+    console.error("Erro ao gerar relatório de frequência:", erro);
+    res.status(500).json({ erro: erro.message });
+  }
+});
+
 // --- O LISTEN FICA NO FINAL DE TUDO ---
 const PORTA = process.env.PORT || 3000;
 app.listen(PORTA, () => {

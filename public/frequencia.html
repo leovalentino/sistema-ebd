@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ranking de Frequência</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css">
+  <link rel="stylesheet" href="style.css?v=1.1">
+
+  <style>
+    @media (min-width: 1000px) {
+      body { padding-left: 50px; padding-right: 50px }
+    }
+
+    .filtros {
+      background: #f8f9fa;
+      border-left: 5px solid #1e88e5;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: flex-end;
+    }
+
+    .filtros label {
+      margin-bottom: 0;
+    }
+
+    .filtros input[type="date"],
+    .filtros select {
+      margin-bottom: 0;
+    }
+
+    .filtros button {
+      margin-bottom: 0;
+      white-space: nowrap;
+    }
+
+    .info-periodo {
+      background: #e3f2fd;
+      border-left: 5px solid #1e88e5;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .info-periodo strong {
+      color: #1565c0;
+    }
+
+    table {
+      width: 100%;
+      font-size: 0.9rem;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th {
+      background-color: #e0e0e0;
+      color: #111;
+      padding: 12px;
+      text-align: left;
+    }
+
+    td {
+      padding: 12px;
+      color: #222;
+    }
+
+    tbody tr:hover {
+      background-color: #f5f5f5;
+    }
+
+    .text-center { text-align: center; }
+    .text-green { color: #2e7d32; }
+    .text-red { color: #d32f2f; }
+    .text-blue { color: #1565c0; }
+
+    .posicao {
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+
+    .posicao-1 { color: #ffd700; }
+    .posicao-2 { color: #c0c0c0; }
+    .posicao-3 { color: #cd7f32; }
+
+    .badge-turma {
+      background: #e3f2fd;
+      color: #1565c0;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .percentual-bar {
+      background: #e0e0e0;
+      border-radius: 4px;
+      height: 8px;
+      width: 100%;
+      max-width: 100px;
+      display: inline-block;
+      overflow: hidden;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    .percentual-bar-inner {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .percentual-high { background: #4caf50; }
+    .percentual-medium { background: #ffb300; }
+    .percentual-low { background: #d32f2f; }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .empty-state p {
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 768px) {
+      .filtros {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .filtros > div {
+        width: 100%;
+      }
+
+      .info-periodo {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      table {
+        font-size: 0.8rem;
+      }
+
+      th, td {
+        padding: 8px 6px;
+      }
+
+      .percentual-bar {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<main class="container">
+  <nav>
+    <ul><li><strong>Ranking de Frequência</strong></li></ul>
+    <ul>
+      <li><a href="index.html" role="button" class="outline">Chamada</a></li>
+      <li><a href="dashboard.html" role="button" class="outline">Dashboard</a></li>
+      <li><a href="cadastro.html" role="button" class="outline">Secretaria</a></li>
+    </ul>
+  </nav>
+
+  <section class="filtros">
+    <div>
+      <label for="data-inicio"><strong>Data Início</strong></label>
+      <input type="date" id="data-inicio">
+    </div>
+    <div>
+      <label for="data-fim"><strong>Data Fim</strong></label>
+      <input type="date" id="data-fim">
+    </div>
+    <div>
+      <label for="filtro-turma"><strong>Turma</strong></label>
+      <select id="filtro-turma" onchange="aplicarFiltroTurma()">
+        <option value="">Todas as turmas</option>
+      </select>
+    </div>
+    <button onclick="buscarFrequencia()">Buscar</button>
+  </section>
+
+  <section id="info-periodo" class="info-periodo" style="display: none;">
+    <div>
+      <span>Período: <strong id="lbl-periodo"></strong></span>
+      <span style="margin-left: 20px;">Total de aulas: <strong id="lbl-total-aulas"></strong></span>
+    </div>
+    <div>
+      <span>Alunos encontrados: <strong id="lbl-total-alunos"></strong></span>
+    </div>
+  </section>
+
+  <section id="area-ranking">
+    <div class="empty-state">
+      <p>Selecione um intervalo de datas para visualizar o ranking de frequência.</p>
+    </div>
+  </section>
+</main>
+
+<script src="common.js?v=1.0"></script>
+
+<script>
+  verificarAcesso();
+
+  // Dados em memória para filtro
+  let dadosRanking = [];
+  let totalRelatorios = 0;
+
+  // Define datas padrão (último mês)
+  function definirDatasIniciais() {
+    const hoje = new Date();
+    const mesPassado = new Date();
+    mesPassado.setMonth(mesPassado.getMonth() - 1);
+
+    document.getElementById('data-fim').value = hoje.toISOString().split('T')[0];
+    document.getElementById('data-inicio').value = mesPassado.toISOString().split('T')[0];
+  }
+
+  // Carrega turmas para o filtro
+  async function carregarTurmas() {
+    try {
+      const res = await fetch(`${API_URL}/turmas`);
+      const turmas = await res.json();
+
+      const select = document.getElementById('filtro-turma');
+      turmas.forEach(turma => {
+        const option = document.createElement('option');
+        option.value = turma.id;
+        option.textContent = turma.nome;
+        select.appendChild(option);
+      });
+    } catch (erro) {
+      console.error('Erro ao carregar turmas:', erro);
+    }
+  }
+
+  async function buscarFrequencia() {
+    const dataInicio = document.getElementById('data-inicio').value;
+    const dataFim = document.getElementById('data-fim').value;
+
+    if (!dataInicio || !dataFim) {
+      alert('Por favor, selecione as datas de início e fim.');
+      return;
+    }
+
+    if (new Date(dataInicio) > new Date(dataFim)) {
+      alert('A data de início deve ser anterior à data fim.');
+      return;
+    }
+
+    const area = document.getElementById('area-ranking');
+    area.innerHTML = '<p aria-busy="true">Buscando dados de frequência...</p>';
+
+    // Reseta filtro de turma
+    document.getElementById('filtro-turma').value = '';
+
+    try {
+      const res = await fetch(`${API_URL}/relatorios/frequencia?data_inicio=${dataInicio}&data_fim=${dataFim}`);
+      const dados = await res.json();
+
+      if (dados.erro) {
+        area.innerHTML = `<div class="empty-state"><p>Erro: ${dados.erro}</p></div>`;
+        return;
+      }
+
+      // Armazena dados em memória
+      dadosRanking = dados.ranking;
+      totalRelatorios = dados.total_relatorios;
+
+      // Atualiza info do período
+      document.getElementById('info-periodo').style.display = 'flex';
+      document.getElementById('lbl-periodo').innerText = `${formatarData(dataInicio)} a ${formatarData(dataFim)}`;
+      document.getElementById('lbl-total-aulas').innerText = totalRelatorios;
+
+      // Renderiza tabela
+      renderizarTabela(dadosRanking);
+
+    } catch (erro) {
+      console.error(erro);
+      area.innerHTML = `<div class="empty-state"><p>Erro ao buscar dados. Verifique a conexão.</p></div>`;
+    }
+  }
+
+  function aplicarFiltroTurma() {
+    const turmaId = document.getElementById('filtro-turma').value;
+
+    if (!turmaId) {
+      // Sem filtro, mostra todos
+      renderizarTabela(dadosRanking);
+    } else {
+      // Filtra em memória
+      const dadosFiltrados = dadosRanking.filter(aluno => aluno.turma_id === turmaId);
+      renderizarTabela(dadosFiltrados);
+    }
+  }
+
+  function renderizarTabela(dados) {
+    const area = document.getElementById('area-ranking');
+
+    // Atualiza contador de alunos
+    document.getElementById('lbl-total-alunos').innerText = dados.length;
+
+    if (dados.length === 0) {
+      area.innerHTML = `
+        <div class="empty-state">
+          <p>Nenhum registro de frequência encontrado.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Reordena para recalcular posições após filtro
+    const dadosOrdenados = [...dados].sort((a, b) => b.presencas - a.presencas);
+
+    let html = `
+      <table role="grid">
+        <thead>
+          <tr>
+            <th class="text-center">#</th>
+            <th>Aluno</th>
+            <th>Turma</th>
+            <th class="text-center">Presenças</th>
+            <th class="text-center">Aulas</th>
+            <th>% Frequência</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    dadosOrdenados.forEach((aluno, index) => {
+      const posicao = index + 1;
+      let classPosicao = '';
+      let medalha = '';
+
+      if (posicao === 1) {
+        classPosicao = 'posicao-1';
+        medalha = ' (1o)';
+      } else if (posicao === 2) {
+        classPosicao = 'posicao-2';
+        medalha = ' (2o)';
+      } else if (posicao === 3) {
+        classPosicao = 'posicao-3';
+        medalha = ' (3o)';
+      }
+
+      const percentual = parseFloat(aluno.percentual);
+      let classPercentual = 'percentual-low';
+      if (percentual >= 75) {
+        classPercentual = 'percentual-high';
+      } else if (percentual >= 50) {
+        classPercentual = 'percentual-medium';
+      }
+
+      html += `
+        <tr>
+          <td class="text-center posicao ${classPosicao}">${posicao}${medalha}</td>
+          <td><strong>${aluno.nome}</strong></td>
+          <td><span class="badge-turma">${aluno.turma_nome}</span></td>
+          <td class="text-center text-green"><strong>${aluno.presencas}</strong></td>
+          <td class="text-center">${aluno.total_aulas}</td>
+          <td>
+            <span class="percentual-bar">
+              <span class="percentual-bar-inner ${classPercentual}" style="width: ${percentual}%"></span>
+            </span>
+            <strong style="color: ${percentual >= 75 ? '#2e7d32' : percentual >= 50 ? '#ff8f00' : '#d32f2f'}">${aluno.percentual}%</strong>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += '</tbody></table>';
+    area.innerHTML = html;
+  }
+
+  function formatarData(dataISO) {
+    const [ano, mes, dia] = dataISO.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  // Inicializa
+  definirDatasIniciais();
+  carregarTurmas();
+</script>
+</body>
+</html>
