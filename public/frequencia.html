@@ -31,6 +31,7 @@
     }
 
     .filtros input[type="date"],
+    .filtros input[type="number"],
     .filtros select {
       margin-bottom: 0;
     }
@@ -84,6 +85,7 @@
     .text-center { text-align: center; }
     .text-green { color: #2e7d32; }
     .text-red { color: #d32f2f; }
+    .font-bold { font-weight: bold; }
     .text-blue { color: #1565c0; }
     .text-orange { color: #f57c00; }
 
@@ -198,9 +200,13 @@
     </div>
     <div>
       <label for="filtro-turma"><strong>Turma</strong></label>
-      <select id="filtro-turma" onchange="aplicarFiltroTurma()">
+      <select id="filtro-turma" onchange="aplicarFiltros()">
         <option value="">Todas as turmas</option>
       </select>
+    </div>
+    <div>
+      <label for="filtro-faltas-cons"><strong>Faltas Cons. (Mín)</strong></label>
+      <input type="number" id="filtro-faltas-cons" min="0" value="0" onchange="aplicarFiltros()" onkeyup="aplicarFiltros()">
     </div>
     <button onclick="buscarFrequencia()">Buscar</button>
   </section>
@@ -276,8 +282,9 @@
     const area = document.getElementById('area-ranking');
     area.innerHTML = '<p aria-busy="true">Buscando dados de frequência...</p>';
 
-    // Reseta filtro de turma
+    // Reseta filtros
     document.getElementById('filtro-turma').value = '';
+    document.getElementById('filtro-faltas-cons').value = '0';
 
     try {
       const res = await fetch(`${API_URL}/relatorios/frequencia?data_inicio=${dataInicio}&data_fim=${dataFim}`);
@@ -306,17 +313,23 @@
     }
   }
 
-  function aplicarFiltroTurma() {
+  function aplicarFiltros() {
     const turmaId = document.getElementById('filtro-turma').value;
+    const minFaltasCons = parseInt(document.getElementById('filtro-faltas-cons').value) || 0;
 
-    if (!turmaId) {
-      // Sem filtro, mostra todos
-      renderizarTabela(dadosRanking);
-    } else {
-      // Filtra em memória
-      const dadosFiltrados = dadosRanking.filter(aluno => aluno.turma_id === turmaId);
-      renderizarTabela(dadosFiltrados);
+    let dadosFiltrados = dadosRanking;
+
+    // Filtra por turma se selecionado
+    if (turmaId) {
+      dadosFiltrados = dadosFiltrados.filter(aluno => aluno.turma_id === turmaId);
     }
+
+    // Filtra por faltas consecutivas se maior que 0
+    if (minFaltasCons > 0) {
+      dadosFiltrados = dadosFiltrados.filter(aluno => (aluno.faltas_consecutivas || 0) >= minFaltasCons);
+    }
+
+    renderizarTabela(dadosFiltrados);
   }
 
   function renderizarTabela(dados) {
@@ -346,6 +359,7 @@
             <th>Turma</th>
             <th class="text-center">Presenças</th>
             <th class="text-center">Faltas</th>
+            <th class="text-center" title="Faltas Consecutivas">F. Cons.</th>
             <th class="text-center" title="Faltas Justificadas (não contam no cálculo)">Justif.</th>
             <th class="text-center">Aulas</th>
             <th>% Frequência</th>
@@ -354,8 +368,17 @@
         <tbody>
     `;
 
+    let posicaoReal = 0;
+    let ultimaPresenca = -1;
+
     dadosOrdenados.forEach((aluno, index) => {
-      const posicao = index + 1;
+      // Lógica de empate: se tiver a mesma quantidade de presenças que o anterior, mantém a posição
+      if (aluno.presencas !== ultimaPresenca) {
+        posicaoReal = index + 1;
+        ultimaPresenca = aluno.presencas;
+      }
+
+      const posicao = posicaoReal;
       let classPosicao = '';
       let medalha = '';
 
@@ -379,7 +402,11 @@
       }
 
       const faltas = aluno.faltas || 0;
+      const faltasConsecutivas = aluno.faltas_consecutivas || 0;
       const faltasJustificadas = aluno.faltas_justificadas || 0;
+
+      // Alerta para faltas consecutivas (ex: >= 3)
+      const classFaltasConsec = faltasConsecutivas >= 3 ? 'text-red font-bold' : '';
 
       // Indicador visual para quem tem faltas justificadas
       const badgeJustif = faltasJustificadas > 0
@@ -393,6 +420,7 @@
           <td><span class="badge-turma">${aluno.turma_nome}</span></td>
           <td class="text-center text-green"><strong>${aluno.presencas}</strong></td>
           <td class="text-center text-red">${faltas}</td>
+          <td class="text-center ${classFaltasConsec}">${faltasConsecutivas}</td>
           <td class="text-center">${badgeJustif}</td>
           <td class="text-center">${aluno.total_aulas}</td>
           <td>
