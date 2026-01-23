@@ -386,6 +386,7 @@ app.get('/relatorios/frequencia', async (req, res) => {
     const snapshot = await db.collection('relatorios_aula')
       .where('data_aula', '>=', startTimestamp)
       .where('data_aula', '<=', endTimestamp)
+      .orderBy('data_aula', 'asc') // Ordena por data para calcular faltas consecutivas
       .get();
 
     // Busca turmas para mapear nomes
@@ -422,7 +423,9 @@ app.get('/relatorios/frequencia', async (req, res) => {
               presencas: 0,
               faltas: 0,
               faltas_justificadas: 0,
-              total_aulas: 0
+              total_aulas: 0,
+              faltas_consecutivas: 0,
+              _faltas_atuais: 0 // Auxiliar para cálculo
             };
           }
 
@@ -430,12 +433,21 @@ app.get('/relatorios/frequencia', async (req, res) => {
 
           if (aluno.presente) {
             frequenciaPorAluno[chave].presencas++;
+            frequenciaPorAluno[chave]._faltas_atuais = 0; // Reseta consecutivas se estiver presente
           } else if (aluno.falta_justificada) {
             // Falta justificada: neutra no cálculo de percentual
             frequenciaPorAluno[chave].faltas_justificadas++;
+            // Se quiser que falta justificada TAMBÉM quebre a sequência de faltas, descomente:
+            // frequenciaPorAluno[chave]._faltas_atuais = 0; 
           } else {
             // Falta normal
             frequenciaPorAluno[chave].faltas++;
+            frequenciaPorAluno[chave]._faltas_atuais++;
+            
+            // Atualiza o recorde de faltas consecutivas se as atuais forem maiores
+            if (frequenciaPorAluno[chave]._faltas_atuais > frequenciaPorAluno[chave].faltas_consecutivas) {
+              frequenciaPorAluno[chave].faltas_consecutivas = frequenciaPorAluno[chave]._faltas_atuais;
+            }
           }
         });
       }
@@ -445,11 +457,12 @@ app.get('/relatorios/frequencia', async (req, res) => {
     // O percentual considera apenas aulas sem falta justificada (presencas / (total - justificadas))
     const ranking = Object.values(frequenciaPorAluno)
       .map(aluno => {
-        const aulasContabilizadas = aluno.total_aulas - aluno.faltas_justificadas;
+        const { _faltas_atuais, ...dadosAluno } = aluno; // Remove campo auxiliar
+        const aulasContabilizadas = dadosAluno.total_aulas - dadosAluno.faltas_justificadas;
         return {
-          ...aluno,
+          ...dadosAluno,
           percentual: aulasContabilizadas > 0
-            ? ((aluno.presencas / aulasContabilizadas) * 100).toFixed(2)
+            ? ((dadosAluno.presencas / aulasContabilizadas) * 100).toFixed(2)
             : "0.00"
         };
       })

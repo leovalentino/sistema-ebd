@@ -84,6 +84,7 @@
     .text-center { text-align: center; }
     .text-green { color: #2e7d32; }
     .text-red { color: #d32f2f; }
+    .font-bold { font-weight: bold; }
     .text-blue { color: #1565c0; }
     .text-orange { color: #f57c00; }
 
@@ -346,6 +347,7 @@
             <th>Turma</th>
             <th class="text-center">Presenças</th>
             <th class="text-center">Faltas</th>
+            <th class="text-center" title="Faltas Consecutivas">F. Cons.</th>
             <th class="text-center" title="Faltas Justificadas (não contam no cálculo)">Justif.</th>
             <th class="text-center">Aulas</th>
             <th>% Frequência</th>
@@ -379,7 +381,11 @@
       }
 
       const faltas = aluno.faltas || 0;
+      const faltasConsecutivas = aluno.faltas_consecutivas || 0;
       const faltasJustificadas = aluno.faltas_justificadas || 0;
+
+      // Alerta para faltas consecutivas (ex: >= 3)
+      const classFaltasConsec = faltasConsecutivas >= 3 ? 'text-red font-bold' : '';
 
       // Indicador visual para quem tem faltas justificadas
       const badgeJustif = faltasJustificadas > 0
@@ -393,6 +399,7 @@
           <td><span class="badge-turma">${aluno.turma_nome}</span></td>
           <td class="text-center text-green"><strong>${aluno.presencas}</strong></td>
           <td class="text-center text-red">${faltas}</td>
+          <td class="text-center ${classFaltasConsec}">${faltasConsecutivas}</td>
           <td class="text-center">${badgeJustif}</td>
           <td class="text-center">${aluno.total_aulas}</td>
           <td>
