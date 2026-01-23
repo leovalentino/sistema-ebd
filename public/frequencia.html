@@ -31,6 +31,7 @@
     }
 
     .filtros input[type="date"],
+    .filtros input[type="number"],
     .filtros select {
       margin-bottom: 0;
     }
@@ -199,9 +200,13 @@
     </div>
     <div>
       <label for="filtro-turma"><strong>Turma</strong></label>
-      <select id="filtro-turma" onchange="aplicarFiltroTurma()">
+      <select id="filtro-turma" onchange="aplicarFiltros()">
         <option value="">Todas as turmas</option>
       </select>
+    </div>
+    <div>
+      <label for="filtro-faltas-cons"><strong>Faltas Cons. (Mín)</strong></label>
+      <input type="number" id="filtro-faltas-cons" min="0" value="0" onchange="aplicarFiltros()" onkeyup="aplicarFiltros()">
     </div>
     <button onclick="buscarFrequencia()">Buscar</button>
   </section>
@@ -277,8 +282,9 @@
     const area = document.getElementById('area-ranking');
     area.innerHTML = '<p aria-busy="true">Buscando dados de frequência...</p>';
 
-    // Reseta filtro de turma
+    // Reseta filtros
     document.getElementById('filtro-turma').value = '';
+    document.getElementById('filtro-faltas-cons').value = '0';
 
     try {
       const res = await fetch(`${API_URL}/relatorios/frequencia?data_inicio=${dataInicio}&data_fim=${dataFim}`);
@@ -307,17 +313,23 @@
     }
   }
 
-  function aplicarFiltroTurma() {
+  function aplicarFiltros() {
     const turmaId = document.getElementById('filtro-turma').value;
+    const minFaltasCons = parseInt(document.getElementById('filtro-faltas-cons').value) || 0;
 
-    if (!turmaId) {
-      // Sem filtro, mostra todos
-      renderizarTabela(dadosRanking);
-    } else {
-      // Filtra em memória
-      const dadosFiltrados = dadosRanking.filter(aluno => aluno.turma_id === turmaId);
-      renderizarTabela(dadosFiltrados);
+    let dadosFiltrados = dadosRanking;
+
+    // Filtra por turma se selecionado
+    if (turmaId) {
+      dadosFiltrados = dadosFiltrados.filter(aluno => aluno.turma_id === turmaId);
     }
+
+    // Filtra por faltas consecutivas se maior que 0
+    if (minFaltasCons > 0) {
+      dadosFiltrados = dadosFiltrados.filter(aluno => (aluno.faltas_consecutivas || 0) >= minFaltasCons);
+    }
+
+    renderizarTabela(dadosFiltrados);
   }
 
   function renderizarTabela(dados) {
