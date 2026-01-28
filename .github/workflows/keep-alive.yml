@@ -1,17 +1,17 @@
 name: Keep Alive EBD Sunday
-
 on:
   schedule:
-    # Cron Syntax: minuto hora dia_mes mes dia_semana
-    # ATENÇÃO: GitHub usa UTC.
-    # Brasil (Brasília) é UTC-3.
-    # Queremos Domingo 08:00 às 12:00 BRT -> Domingo 11:00 às 15:00 UTC
-    # Vamos rodar a cada 14 minutos entre 11h e 15h UTC
-    - cron: '*/14 11-14 * * 0'
-
+    # Acordar 30min antes (10:30 UTC = 07:30 BRT)
+    - cron: '30 10 * * 0'
+    # Manter acordado (11:00-15:59 UTC = 08:00-12:59 BRT)
+    - cron: '*/14 11-15 * * 0'
 jobs:
   ping_site:
     runs-on: ubuntu-latest
     steps:
       - name: Acordar o Render
-        run: curl -I https://sistema-ebd.onrender.com/
+        run: |
+          curl -f -m 30 https://sistema-ebd.onrender.com/ > /dev/null 2>&1 || \
+          echo "Tentativa falhou, mas job continua"
+      - name: Verificar status
+        run: echo "Ping executado às $(date -u)"
