@@ -1,17 +1,48 @@
 name: Keep Alive EBD Sunday
 on:
   schedule:
-    # Acordar 30min antes (10:30 UTC = 07:30 BRT)
-    - cron: '30 10 * * 0'
-    # Manter acordado (11:00-15:59 UTC = 08:00-12:59 BRT)
-    - cron: '*/14 11-15 * * 0'
+    # Acordar BEM ANTES - 40min de antecedência (10:20 UTC = 07:20 BRT)
+    - cron: '20 10 * * 0'
+    # Manter acordado com intervalo menor no início
+    - cron: '*/10 11-12 * * 0'  # A cada 10min nas 2 primeiras horas
+    - cron: '*/14 13-15 * * 0'  # A cada 14min depois que já estabilizou
+
 jobs:
   ping_site:
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # Evita job travado
     steps:
-      - name: Acordar o Render
+      - name: Acordar o Render (com retries)
         run: |
-          curl -f -m 30 https://sistema-ebd.onrender.com/ > /dev/null 2>&1 || \
-          echo "Tentativa falhou, mas job continua"
-      - name: Verificar status
-        run: echo "Ping executado às $(date -u)"
+          MAX_ATTEMPTS=5
+          ATTEMPT=1
+          SUCCESS=false
+          
+          echo "🚀 Iniciando pings no Render..."
+          
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ] && [ "$SUCCESS" = false ]; do
+            echo "Tentativa $ATTEMPT de $MAX_ATTEMPTS..."
+          
+            # Timeout de 90 segundos (Render pode demorar)
+            if curl -f -m 90 -s -o /dev/null -w "Status: %{http_code} | Tempo: %{time_total}s\n" \
+                 https://sistema-ebd.onrender.com/; then
+              echo "✅ Sucesso na tentativa $ATTEMPT"
+              SUCCESS=true
+            else
+              echo "⚠️ Falhou na tentativa $ATTEMPT"
+              if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+                echo "Aguardando 30s antes de tentar novamente..."
+                sleep 30
+              fi
+            fi
+          
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+          
+          if [ "$SUCCESS" = false ]; then
+            echo "❌ Todas as tentativas falharam, mas job continua"
+            exit 0  # Não falha o workflow
+          fi
+
+      - name: Log de conclusão
+        run: echo "Job finalizado às $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
