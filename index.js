@@ -147,41 +147,109 @@ app.get('/financeiro/resumo', async (req, res) => {
       const ano = dataJS.getFullYear();
 
       // CÁLCULO MÁGICO DO TRIMESTRE
-      // Dividimos o mês por 3 e arredondamos para baixo.
-      // Ex: Janeiro (0) / 3 = 0 -> +1 = 1º Trimestre
-      // Ex: Abril (3) / 3 = 1 -> +1 = 2º Trimestre
       const numTrimestre = Math.floor(mes / 3) + 1;
 
       // Cria a chave ex: "Jan-Mar/2024"
-      // Usamos um prefixo numérico (ano-trimestre) para facilitar a ordenação depois, se precisar
-      // Mas aqui vamos usar a chave de exibição direta para simplificar
       const chave = `${nomesTrimestres[numTrimestre]}/${ano}`;
 
       if (!dadosPorTrimestre[chave]) {
-        dadosPorTrimestre[chave] = 0;
+        dadosPorTrimestre[chave] = { entradas: 0, saidas: 0 };
       }
 
-      dadosPorTrimestre[chave] += valor;
+      dadosPorTrimestre[chave].entradas += valor;
       totalGeral += valor;
     });
 
-    // Transforma em array
+    // Transforma em array inicial
     const relatorioFinal = Object.keys(dadosPorTrimestre).map(chave => ({
       periodo: chave,
-      total: dadosPorTrimestre[chave]
+      entradas: dadosPorTrimestre[chave].entradas,
+      saidas: dadosPorTrimestre[chave].saidas,
+      total: dadosPorTrimestre[chave].entradas - dadosPorTrimestre[chave].saidas
     }));
 
-    // Opcional: Ordenar para que "Jan-Mar" venha antes de "Abr-Jun"
-    // (Como strings, Jan vem depois de Abr, então precisamos de cuidado se a ordem importar muito)
-    // Se a ordem ficar bagunçada, me avise que fazemos uma ordenação mais robusta.
+    // --- LANÇAMENTOS AVULSOS (Novos) ---
+    const snapshotLancamentos = await db.collection('lancamentos_financeiros')
+        .orderBy('data', 'desc')
+        .get();
+
+    const listaLancamentos = [];
+    snapshotLancamentos.forEach(doc => {
+      const data = doc.data();
+      const valor = data.valor || 0;
+      const tipo = data.tipo; // 'entrada' ou 'saida'
+      const dataJS = data.data.toDate();
+      
+      const mes = dataJS.getMonth();
+      const ano = dataJS.getFullYear();
+      const numTrimestre = Math.floor(mes / 3) + 1;
+      const chave = `${nomesTrimestres[numTrimestre]}/${ano}`;
+
+      // Adiciona ao total geral
+      totalGeral += (tipo === 'entrada' ? valor : -valor);
+
+      // Adiciona ao histórico por trimestre
+      let itemExistente = relatorioFinal.find(r => r.periodo === chave);
+      if (!itemExistente) {
+        itemExistente = { periodo: chave, entradas: 0, saidas: 0, total: 0 };
+        relatorioFinal.push(itemExistente);
+      }
+
+      if (tipo === 'entrada') {
+        itemExistente.entradas += valor;
+      } else {
+        itemExistente.saidas += valor;
+      }
+      itemExistente.total = itemExistente.entradas - itemExistente.saidas;
+
+      listaLancamentos.push({ id: doc.id, ...data, data_formatada: dataJS.toLocaleDateString('pt-BR') });
+    });
 
     res.json({
       total_acumulado: totalGeral,
-      historico: relatorioFinal // Mudei o nome de 'historico_meses' para 'historico'
+      historico: relatorioFinal,
+      lancamentos: listaLancamentos
     });
 
   } catch (erro) {
     console.error(erro);
+    res.status(500).json({ erro: erro.message });
+  }
+});
+
+// --- NOVAS ROTAS FINANCEIRAS ---
+app.post('/financeiro/lancamentos', async (req, res) => {
+  try {
+    const { valor, tipo, descricao, data } = req.body;
+    
+    // Valor deve ser número positivo (convertido de string no frontend se necessário)
+    const valorNum = parseFloat(valor);
+    if (isNaN(valorNum)) return res.status(400).json({ erro: "Valor inválido" });
+
+    const dataObj = data ? new Date(data + "T12:00:00") : new Date();
+
+    const novoLancamento = {
+      valor: valorNum,
+      tipo, // 'entrada' ou 'saida'
+      descricao,
+      data: admin.firestore.Timestamp.fromDate(dataObj),
+      criado_em: admin.firestore.Timestamp.now()
+    };
+
+    const docRef = await db.collection('lancamentos_financeiros').add(novoLancamento);
+    res.json({ sucesso: true, id: docRef.id });
+
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message });
+  }
+});
+
+app.delete('/financeiro/lancamentos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.collection('lancamentos_financeiros').doc(id).delete();
+    res.json({ sucesso: true });
+  } catch (erro) {
     res.status(500).json({ erro: erro.message });
   }
 });
@@ -243,6 +311,133 @@ app.delete('/relatorios/:id', async (req, res) => {
     await db.collection('relatorios_aula').doc(id).delete();
     res.json({ sucesso: true });
   } catch (erro) {
+    res.status(500).json({ erro: erro.message });
+  }
+});
+
+// --- NOVO: Rota para verificar se já tem chamada no dia ---
+app.get('/relatorios/medias', async (req, res) => {
+  try {
+    const { data_inicio, data_fim } = req.query;
+
+    let query = db.collection('relatorios_aula');
+
+    if (data_inicio && data_fim) {
+      const start = admin.firestore.Timestamp.fromDate(new Date(data_inicio + "T00:00:00"));
+      const end = admin.firestore.Timestamp.fromDate(new Date(data_fim + "T23:59:59"));
+      query = query.where('data_aula', '>=', start).where('data_aula', '<=', end);
+    }
+
+    const snapshotRelatorios = await query.get();
+    const snapshotTurmas = await db.collection('turmas').get();
+
+    const mapaTurmas = {};
+    snapshotTurmas.forEach(doc => {
+      mapaTurmas[doc.id] = doc.data().nome;
+    });
+
+    const totaisPorTurma = {}; // { turmaId: { somaPres: 0, somaMatr: 0, somaAus: 0, somaVis: 0, somaTotal: 0, somaOferta: 0, somaBib: 0, somaRev: 0, qtd: 0 } }
+    const datasUnicas = new Set();
+
+    snapshotRelatorios.forEach(doc => {
+      const data = doc.data();
+      const turmaId = data.turma_id;
+      
+      // Adiciona a data ao Set para contar domingos únicos
+      if (data.data_aula) {
+        datasUnicas.add(data.data_aula.toDate().toLocaleDateString('pt-BR'));
+      }
+      
+      const matriculados = data.detalhes_alunos ? data.detalhes_alunos.length : 0;
+      const presentes = data.resumo ? data.resumo.presentes : 0;
+      const ausentes = matriculados - presentes;
+      const visitantes = data.resumo && data.resumo.visitantes ? (data.resumo.visitantes.quantidade || 0) : 0;
+      const totalPessoas = presentes + visitantes;
+      const oferta = data.oferta_total || 0;
+      
+      const bibMembros = data.resumo ? (data.resumo.biblias || 0) : 0;
+      const revMembros = data.resumo ? (data.resumo.revistas || 0) : 0;
+      const bibVis = data.resumo && data.resumo.visitantes ? (data.resumo.visitantes.biblias || 0) : 0;
+      const revVis = data.resumo && data.resumo.visitantes ? (data.resumo.visitantes.revistas || 0) : 0;
+      
+      const totalBib = bibMembros + bibVis;
+      const totalRev = revMembros + revVis;
+
+      if (!totaisPorTurma[turmaId]) {
+        totaisPorTurma[turmaId] = { 
+          somaPres: 0, somaMatr: 0, somaAus: 0, somaVis: 0, 
+          somaTotal: 0, somaOferta: 0, somaBib: 0, somaRev: 0, qtd: 0 
+        };
+      }
+
+      totaisPorTurma[turmaId].somaPres += presentes;
+      totaisPorTurma[turmaId].somaMatr += matriculados;
+      totaisPorTurma[turmaId].somaAus += ausentes;
+      totaisPorTurma[turmaId].somaVis += visitantes;
+      totaisPorTurma[turmaId].somaTotal += totalPessoas;
+      totaisPorTurma[turmaId].somaOferta += oferta;
+      totaisPorTurma[turmaId].somaBib += totalBib;
+      totaisPorTurma[turmaId].somaRev += totalRev;
+      totaisPorTurma[turmaId].qtd += 1;
+    });
+
+    const medias = Object.keys(totaisPorTurma).map(turmaId => {
+      const info = totaisPorTurma[turmaId];
+      return {
+        turma_id: turmaId,
+        nome_turma: mapaTurmas[turmaId] || "Turma Desconhecida",
+        total_aulas: info.qtd,
+        media_presentes: info.somaPres / info.qtd,
+        media_matriculados: info.somaMatr / info.qtd,
+        media_ausentes: info.somaAus / info.qtd,
+        media_visitantes: info.somaVis / info.qtd,
+        media_total: info.somaTotal / info.qtd,
+        media_oferta: info.somaOferta / info.qtd,
+        media_biblias: info.somaBib / info.qtd,
+        media_revistas: info.somaRev / info.qtd,
+        percentual_frequencia: info.somaMatr > 0 ? (info.somaPres / info.somaMatr) * 100 : 0
+      };
+    });
+
+    // Calcula as médias gerais
+    let somaGeralPres = 0, somaGeralMatr = 0, somaGeralAus = 0, somaGeralVis = 0;
+    let somaGeralTotal = 0, somaGeralOferta = 0, somaGeralBib = 0, somaGeralRev = 0;
+    let qtdGeral = 0;
+
+    Object.values(totaisPorTurma).forEach(info => {
+      somaGeralPres += info.somaPres;
+      somaGeralMatr += info.somaMatr;
+      somaGeralAus += info.somaAus;
+      somaGeralVis += info.somaVis;
+      somaGeralTotal += info.somaTotal;
+      somaGeralOferta += info.somaOferta;
+      somaGeralBib += info.somaBib;
+      somaGeralRev += info.somaRev;
+      qtdGeral += info.qtd;
+    });
+
+    // O divisor para a média geral agora é o número de domingos (datas únicas)
+    const divisorGeral = datasUnicas.size || 1;
+
+    res.json({
+      medias,
+      geral: {
+        media_presentes: somaGeralPres / divisorGeral,
+        media_matriculados: somaGeralMatr / divisorGeral,
+        media_ausentes: somaGeralAus / divisorGeral,
+        media_visitantes: somaGeralVis / divisorGeral,
+        media_total: somaGeralTotal / divisorGeral,
+        media_oferta: somaGeralOferta / divisorGeral,
+        media_biblias: somaGeralBib / divisorGeral,
+        media_revistas: somaGeralRev / divisorGeral,
+        percentual_frequencia: somaGeralMatr > 0 ? (somaGeralPres / somaGeralMatr) * 100 : 0
+      },
+      total_geral_aulas: qtdGeral,
+      total_domingos: datasUnicas.size
+    });
+
+  } catch (erro) {
+    console.error(erro);
     res.status(500).json({ erro: erro.message });
   }
 });

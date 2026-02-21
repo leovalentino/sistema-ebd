@@ -6,23 +6,29 @@
     <title>EBD - Financeiro</title>
     <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css">
     <style>
-        /* Um CSS extra só para esta página */
-        .card-financeiro {
-            background: #e8f5e9; /* Verde clarinho */
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 20px;
-            border: 1px solid #c8e6c9;
-        }
-
         .card-financeiro h3 {
             color: #333333;
         }
-        .valor-grande {
-            font-size: 2.5em;
-            font-weight: bold;
-            color: #2e7d32;
+        .label-dark {
+            color: #333333;
+        }
+        .entrada { color: #2e7d32; font-weight: bold; }
+        .saida { color: #c62828; font-weight: bold; }
+        .grid-forms {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+        @media (max-width: 768px) {
+            .grid-forms { grid-template-columns: 1fr; }
+        }
+        .card-form {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
         }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
@@ -45,21 +51,62 @@
 
     <h1>💰 Painel Financeiro</h1>
 
-    <div class="card-financeiro">
-        <h3>Total Arrecadado (Geral)</h3>
-        <div id="display-total" class="valor-grande">R$ 0,00</div>
+    <div class="card-form" id="form-admin" style="display:none;">
+        <h3 class="label-dark">Novo Lançamento Avulso</h3>
+        <form id="form-lancamento">
+            <div class="grid-forms">
+                <div>
+                    <label class="label-dark">Valor (R$)</label>
+                    <input type="number" step="0.01" id="input-valor" placeholder="0,00" required>
+                </div>
+                <div>
+                    <label class="label-dark">Tipo</label>
+                    <select id="input-tipo" required>
+                        <option value="entrada">Entrada (+)</option>
+                        <option value="saida">Saída (-)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="label-dark">Descrição</label>
+                    <input type="text" id="input-descricao" placeholder="Ex: Compra de café" required>
+                </div>
+                <div>
+                    <label class="label-dark">Data</label>
+                    <input type="date" id="input-data" required>
+                </div>
+                <button type="submit" style="margin-top: 10px;">Salvar</button>
+            </div>
+        </form>
     </div>
+
+    <h3>Lançamentos Avulsos</h3>
+    <table style="margin-bottom: 40px;">
+        <thead>
+        <tr>
+            <th>Data</th>
+            <th>Descrição</th>
+            <th>Tipo</th>
+            <th>Valor</th>
+            <th class="col-admin" style="display:none;">Ações</th>
+        </tr>
+        </thead>
+        <tbody id="tabela-lancamentos">
+        <tr><td colspan="5">Carregando lançamentos...</td></tr>
+        </tbody>
+    </table>
 
     <h3>Histórico por Trimestre</h3>
     <table>
         <thead>
         <tr>
             <th>Trimestre/Ano</th>
-            <th>Valor Arrecadado</th>
+            <th>Entradas (Ofertas)</th>
+            <th>Saídas</th>
+            <th>Saldo Final</th>
         </tr>
         </thead>
         <tbody id="tabela-meses">
-        <tr><td colspan="2">Carregando dados...</td></tr>
+        <tr><td colspan="4">Carregando dados...</td></tr>
         </tbody>
     </table>
 </div>
@@ -71,38 +118,116 @@
     // Inicia a verificação ao abrir a página
     verificarAcesso();
 
+    // Mostrar campos de admin se logado
+    if (localStorage.getItem('adm_logado') === 'sim') {
+        document.getElementById('form-admin').style.display = 'block';
+        document.querySelectorAll('.col-admin').forEach(el => el.style.display = '');
+    }
+
+    // Setar data de hoje no input
+    document.getElementById('input-data').value = new Date().toISOString().split('T')[0];
+
     async function carregarFinanceiro() {
         try {
             const res = await fetch(`${API_URL}/financeiro/resumo`);
             const dados = await res.json();
 
-            document.getElementById('display-total').innerText =
-                dados.total_acumulado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-            const tbody = document.getElementById('tabela-meses');
-            tbody.innerHTML = '';
+            // Tabela Trimestre
+            const tbodyMeses = document.getElementById('tabela-meses');
+            tbodyMeses.innerHTML = '';
 
             if (dados.historico.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="2">Nenhuma oferta registrada.</td></tr>';
-                return;
+                tbodyMeses.innerHTML = '<tr><td colspan="4">Nenhuma oferta registrada.</td></tr>';
+            } else {
+                dados.historico.forEach(item => {
+                    const tr = document.createElement('tr');
+                    const entradasFmt = item.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const saidasFmt = item.saidas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const saldoFmt = item.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    
+                    const corSaldo = item.total >= 0 ? '#2e7d32' : '#c62828';
+
+                    tr.innerHTML = `
+                        <td>${item.periodo}</td>
+                        <td style="color: #2e7d32;">${entradasFmt}</td>
+                        <td style="color: #c62828;">${saidasFmt}</td>
+                        <td style="font-weight:bold; color: ${corSaldo};">${saldoFmt}</td>
+                    `;
+                    tbodyMeses.appendChild(tr);
+                });
             }
 
-            // Loop atualizado
-            dados.historico.forEach(item => {
-                const tr = document.createElement('tr');
-                const valorFormatado = item.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            // Tabela Lançamentos Avulsos
+            const tbodyLancamentos = document.getElementById('tabela-lancamentos');
+            tbodyLancamentos.innerHTML = '';
 
-                tr.innerHTML = `
-                        <td>${item.periodo}</td> <td style="font-weight:bold; color: #2e7d32;">${valorFormatado}</td>
+            if (dados.lancamentos.length === 0) {
+                tbodyLancamentos.innerHTML = '<tr><td colspan="5">Nenhum lançamento avulso.</td></tr>';
+            } else {
+                dados.lancamentos.forEach(item => {
+                    const tr = document.createElement('tr');
+                    const valorFormatado = item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const isAdmin = localStorage.getItem('adm_logado') === 'sim';
+
+                    tr.innerHTML = `
+                        <td>${item.data_formatada}</td>
+                        <td>${item.descricao}</td>
+                        <td class="${item.tipo}">${item.tipo.toUpperCase()}</td>
+                        <td class="${item.tipo}">${valorFormatado}</td>
+                        <td class="col-admin" style="${isAdmin ? '' : 'display:none;'}">
+                            <button class="outline contrast" style="padding: 5px 10px; font-size: 0.8em;" onclick="excluirLancamento('${item.id}')">Excluir</button>
+                        </td>
                     `;
-                tbody.appendChild(tr);
-            });
+                    tbodyLancamentos.appendChild(tr);
+                });
+            }
 
         } catch (erro) {
             console.error(erro);
             alert('Erro ao carregar dados financeiros.');
         }
     }
+
+    async function excluirLancamento(id) {
+        if (!confirm('Deseja excluir este lançamento?')) return;
+        try {
+            const res = await fetch(`${API_URL}/financeiro/lancamentos/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                carregarFinanceiro();
+            }
+        } catch (e) {
+            alert('Erro ao excluir');
+        }
+    }
+
+    document.getElementById('form-lancamento').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const dados = {
+            valor: document.getElementById('input-valor').value,
+            tipo: document.getElementById('input-tipo').value,
+            descricao: document.getElementById('input-descricao').value,
+            data: document.getElementById('input-data').value
+        };
+
+        try {
+            const res = await fetch(`${API_URL}/financeiro/lancamentos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            });
+
+            if (res.ok) {
+                document.getElementById('form-lancamento').reset();
+                document.getElementById('input-data').value = new Date().toISOString().split('T')[0];
+                carregarFinanceiro();
+            } else {
+                alert('Erro ao salvar lançamento');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Erro na conexão');
+        }
+    });
 
     carregarFinanceiro();
 </script>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EBD - Relatório de Médias</title>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css">
+    <style>
+        .container { margin-top: 20px; }
+        .grid-filtros {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 15px;
+            align-items: end;
+            margin-bottom: 30px;
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ccc; /* Aumentado contraste da borda */
+        }
+        .grid-filtros label {
+            color: #333; /* Garantido contraste para os labels dos filtros */
+            font-weight: bold;
+        }
+        @media (max-width: 600px) {
+            .grid-filtros { grid-template-columns: 1fr; }
+        }
+        .card-resumo {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #bbdefb;
+        }
+        .grid-resumo {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .item-resumo {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+        }
+        .valor-media {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #1565c0;
+            display: block;
+        }
+        .label-resumo {
+            font-size: 0.8em;
+            color: #333; /* Aumentado contraste de #555 para #333 */
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .info-aulas {
+            color: #444; /* Definida cor com mais contraste para o texto informativo */
+            font-size: 0.9em;
+        }
+        .btn-voltar {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background-color: #444; /* Escurecido de #666 para #444 */
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { background-color: #eee; color: #222; padding: 10px; } /* Background um pouco mais escuro e texto definido */
+        td { padding: 8px; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-green { color: green; font-weight: bold; }
+        .text-red { color: #d32f2f; font-weight: bold; }
+        .text-blue { color: #1565c0; font-weight: bold; }
+        .bg-green-light { background-color: #e8f5e9; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="dashboard.html" class="btn-voltar">⬅ Voltar para Dashboard</a>
+
+    <h1>📊 Relatório de Médias</h1>
+
+    <div class="grid-filtros">
+        <div>
+            <label>Data Inicial</label>
+            <input type="date" id="data-inicio">
+        </div>
+        <div>
+            <label>Data Final</label>
+            <input type="date" id="data-fim">
+        </div>
+        <button onclick="carregarMedias()">Filtrar</button>
+    </div>
+
+    <div id="resultado" style="display: none;">
+        <div class="card-resumo">
+            <h3 class="label-resumo" style="margin-bottom: 5px;">Média Geral do Período</h3>
+            <p style="margin-bottom: 15px;" class="info-aulas"><span id="info-total-aulas"></span></p>
+            
+            <div class="grid-resumo">
+                <div class="item-resumo">
+                    <span class="label-resumo">Freq. Geral</span>
+                    <span id="resumo-freq" class="valor-media">0%</span>
+                </div>
+                <div class="item-resumo">
+                    <span class="label-resumo">Matr.</span>
+                    <span id="resumo-matr" class="valor-media">0</span>
+                </div>
+                <div class="item-resumo">
+                    <span class="label-resumo">Pres.</span>
+                    <span id="resumo-pres" class="valor-media">0</span>
+                </div>
+                <div class="item-resumo">
+                    <span class="label-resumo">Visit.</span>
+                    <span id="resumo-vis" class="valor-media">0</span>
+                </div>
+                <div class="item-resumo">
+                    <span class="label-resumo">Total</span>
+                    <span id="resumo-total" class="valor-media">0</span>
+                </div>
+                <div class="item-resumo">
+                    <span class="label-resumo">Oferta</span>
+                    <span id="resumo-oferta" class="valor-media">R$ 0</span>
+                </div>
+            </div>
+        </div>
+
+        <h3>Médias por Turma</h3>
+        <table role="grid">
+            <thead>
+                <tr>
+                    <th>Turma</th>
+                    <th class="text-center">Aulas</th>
+                    <th class="text-center">Matr.</th>
+                    <th class="text-center">Pres.</th>
+                    <th class="text-center">Aus.</th>
+                    <th class="text-center">% Freq.</th>
+                    <th class="text-center">Visit.</th>
+                    <th class="text-center bg-green-light">Total</th>
+                    <th class="text-right">Oferta</th>
+                    <th class="text-center">Bib/Rev</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-medias">
+                <!-- Preenchido via JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <div id="carregando" style="display: none;">
+        <p aria-busy="true">Calculando médias...</p>
+    </div>
+
+    <div id="vazio" style="display: none;">
+        <p>Nenhum dado encontrado para este período.</p>
+    </div>
+</div>
+
+<script src="common.js?v=1.0"></script>
+<script>
+    verificarAcesso();
+
+    // Setar datas padrão (início do trimestre atual)
+    const hoje = new Date();
+    const mesAtual = hoje.getMonth();
+    const anoAtual = hoje.getFullYear();
+    const mesInicioTrimestre = Math.floor(mesAtual / 3) * 3;
+    
+    const dataInicio = new Date(anoAtual, mesInicioTrimestre, 1);
+    document.getElementById('data-inicio').value = dataInicio.toISOString().split('T')[0];
+    document.getElementById('data-fim').value = hoje.toISOString().split('T')[0];
+
+    async function carregarMedias() {
+        const dInicio = document.getElementById('data-inicio').value;
+        const dFim = document.getElementById('data-fim').value;
+
+        if (!dInicio || !dFim) {
+            alert("Selecione ambas as datas.");
+            return;
+        }
+
+        document.getElementById('resultado').style.display = 'none';
+        document.getElementById('vazio').style.display = 'none';
+        document.getElementById('carregando').style.display = 'block';
+
+        try {
+            const url = `${API_URL}/relatorios/medias?data_inicio=${dInicio}&data_fim=${dFim}`;
+            const res = await fetch(url);
+            const dados = await res.json();
+
+            document.getElementById('carregando').style.display = 'none';
+
+            if (!dados.medias || dados.medias.length === 0) {
+                document.getElementById('vazio').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('resultado').style.display = 'block';
+            
+            // Preencher Resumo Geral
+            document.getElementById('resumo-freq').innerText = `${dados.geral.percentual_frequencia.toFixed(2)}%`;
+            document.getElementById('resumo-matr').innerText = dados.geral.media_matriculados.toFixed(1);
+            document.getElementById('resumo-pres').innerText = dados.geral.media_presentes.toFixed(1);
+            document.getElementById('resumo-vis').innerText = dados.geral.media_visitantes.toFixed(1);
+            document.getElementById('resumo-total').innerText = dados.geral.media_total.toFixed(1);
+            document.getElementById('resumo-oferta').innerText = formatarMoeda(dados.geral.media_oferta);
+
+            document.getElementById('info-total-aulas').innerText = `Baseado em ${dados.total_domingos} domingos (${dados.total_geral_aulas} chamadas).`;
+
+            const tbody = document.getElementById('tabela-medias');
+            tbody.innerHTML = '';
+
+            // Ordena por média de presença decrescente
+            dados.medias.sort((a, b) => b.media_presentes - a.media_presentes);
+
+            dados.medias.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${item.nome_turma}</strong></td>
+                    <td class="text-center">${item.total_aulas}</td>
+                    <td class="text-center">${item.media_matriculados.toFixed(1)}</td>
+                    <td class="text-center text-green">${item.media_presentes.toFixed(1)}</td>
+                    <td class="text-center text-red">${item.media_ausentes.toFixed(1)}</td>
+                    <td class="text-center" style="font-weight:bold">${item.percentual_frequencia.toFixed(2)}%</td>
+                    <td class="text-center">${item.media_visitantes.toFixed(1)}</td>
+                    <td class="text-center" style="font-weight:bold">${item.media_total.toFixed(1)}</td>
+                    <td class="text-right text-blue">${formatarMoeda(item.media_oferta)}</td>
+                    <td class="text-center" style="font-size:0.8rem">
+                        ✝️ ${item.media_biblias.toFixed(1)}<br>
+                        📘 ${item.media_revistas.toFixed(1)}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+        } catch (erro) {
+            console.error(erro);
+            alert("Erro ao carregar médias.");
+            document.getElementById('carregando').style.display = 'none';
+        }
+    }
+
+    function formatarMoeda(valor) {
+        return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    // Carregar ao abrir
+    carregarMedias();
+</script>
+
+</body>
+</html>
