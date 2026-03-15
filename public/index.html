@@ -118,7 +118,7 @@
         <option value="" disabled selected>Carregando turmas...</option>
       </select>
       <footer>
-        <button onclick="iniciarChamada()">Iniciar Chamada</button>
+        <button id="btn-iniciar" onclick="iniciarChamada()">Iniciar Chamada</button>
       </footer>
     </article>
 
@@ -167,7 +167,7 @@
         <label>Observações / Ocorrências</label>
         <textarea id="obs-aula" rows="2" placeholder="Ex: Tivemos R$10,00 de oferta em PIX"></textarea>
 
-        <button onclick="salvarChamadaDefinitiva()">Salvar Tudo</button>
+        <button id="btn-salvar" onclick="salvarChamadaDefinitiva()">Salvar Tudo</button>
       </footer>
     </article>
 
@@ -180,6 +180,27 @@
     // Variáveis Globais
     let alunosCarregados = [];
     let turmaAtualId = "";
+    let chamadaExistenteId = null;
+    let verificandoChamada = false;
+    let salvandoChamada = false;
+    let verificacaoSequencial = 0;
+
+    function getBtnSalvar() {
+      return document.getElementById('btn-salvar');
+    }
+
+    function setSalvarState({ disabled, text }) {
+      const btnSalvar = getBtnSalvar();
+      if (!btnSalvar) return;
+      btnSalvar.disabled = disabled;
+      btnSalvar.innerText = text;
+    }
+
+    function dataLocalISO() {
+      const agora = new Date();
+      const offset = agora.getTimezoneOffset() * 60000;
+      return new Date(agora.getTime() - offset).toISOString().slice(0, 10);
+    }
 
     // 1. Carregar Turmas ao abrir a tela
     async function carregarTurmas() {
@@ -207,6 +228,7 @@
       if (!turmaId) return alert("Por favor, selecione uma turma!");
 
       select.disabled = true;
+      chamadaExistenteId = null;
 
       try {
         const res = await fetch(`${API_URL}/turmas/${turmaId}/alunos`);
@@ -214,7 +236,7 @@
 
         alunosCarregados = await res.json();
 
-        const hoje = new Date().toISOString().split('T')[0];
+        const hoje = dataLocalISO();
         document.getElementById('data-aula').value = hoje;
 
         // Desenha a tela passando o ID corretamente
@@ -324,6 +346,13 @@
 
     // 4. Função de Salvar no Banco
     async function salvarChamadaDefinitiva() {
+      if (verificandoChamada) {
+        alert("Aguarde a verificação da chamada existente terminar antes de salvar.");
+        return;
+      }
+
+      if (salvandoChamada) return;
+
       const inputOferta = document.getElementById('valor-oferta').value;
       const valorOferta = inputOferta ? parseFloat(inputOferta) : 0;
       const dataEscolhida = document.getElementById('data-aula').value;
@@ -358,16 +387,17 @@
             };
         });
 
-      const botao = document.querySelector('footer button');
-      const textoOriginal = botao.innerText;
-      botao.disabled = true;
-      botao.innerText = "Salvando...";
+      const btnSalvar = getBtnSalvar();
+      const textoOriginal = btnSalvar ? btnSalvar.innerText : "Salvar Tudo";
+      salvandoChamada = true;
+      setSalvarState({ disabled: true, text: "Salvando..." });
 
       try {
         const resposta = await fetch(`${API_URL}/chamada`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            chamada_id: chamadaExistenteId,
             turma_id: turmaAtualId,
             oferta: valorOferta,
             alunos: listaParaEnviar,
@@ -395,8 +425,8 @@
         console.error(erro);
         alert("Erro de conexão com o servidor.");
       } finally {
-        botao.disabled = false;
-        botao.innerText = textoOriginal;
+        salvandoChamada = false;
+        setSalvarState({ disabled: false, text: textoOriginal });
       }
     }
 
@@ -404,16 +434,18 @@
       const dataSelecionada = document.getElementById('data-aula').value;
       if (!turmaAtualId || !dataSelecionada) return;
 
-      // Mostra um aviso visual que está carregando (opcional)
-      const btnSalvar = document.querySelector('footer button');
-      btnSalvar.innerText = "Verificando...";
-      btnSalvar.disabled = true;
+      const seq = ++verificacaoSequencial;
+      verificandoChamada = true;
+      setSalvarState({ disabled: true, text: "Verificando..." });
 
       try {
         const res = await fetch(`${API_URL}/chamada/verificar?turma_id=${turmaAtualId}&data=${dataSelecionada}`);
         const dados = await res.json();
 
+        if (seq !== verificacaoSequencial) return;
+
         if (dados.encontrada) {
+          chamadaExistenteId = dados.id || null;
           // --- MODO EDIÇÃO: Preenche tudo ---
           alert(`📅 Encontramos uma chamada salva para ${dataSelecionada}. Os dados foram carregados.`);
 
@@ -450,6 +482,7 @@
           });
 
         } else {
+          chamadaExistenteId = null;
           document.getElementById('valor-oferta').value = "";
           document.getElementById('obs-aula').value = "";
           document.getElementById('nome-professor').value = ""; // Limpa professor também
@@ -474,8 +507,10 @@
       } catch (e) {
         console.error(e);
       } finally {
-        btnSalvar.innerText = "Salvar Tudo";
-        btnSalvar.disabled = false;
+        if (seq === verificacaoSequencial) {
+          verificandoChamada = false;
+          setSalvarState({ disabled: false, text: "Salvar Tudo" });
+        }
       }
     }
 

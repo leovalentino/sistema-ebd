@@ -442,54 +442,59 @@ app.get('/relatorios/medias', async (req, res) => {
   }
 });
 
+function buildChamadaDocId(turmaId, dataAula) {
+  return `${String(turmaId)}_${String(dataAula)}`.replace(/\//g, '-');
+}
+
+async function buscarChamadaPorTurmaEData(turmaId, data) {
+  const docId = buildChamadaDocId(turmaId, data);
+  const docRef = db.collection('relatorios_aula').doc(docId);
+  const doc = await docRef.get();
+
+  if (doc.exists) {
+    return { id: doc.id, ref: docRef, data: doc.data() };
+  }
+
+  const timestamp = admin.firestore.Timestamp.fromDate(new Date(data + "T12:00:00"));
+  const snapshot = await db.collection('relatorios_aula')
+    .where('turma_id', '==', turmaId)
+    .where('data_aula', '==', timestamp)
+    .limit(1)
+    .get();
+
+  if (snapshot.empty) {
+    return null;
+  }
+
+  const legacyDoc = snapshot.docs[0];
+  return { id: legacyDoc.id, ref: legacyDoc.ref, data: legacyDoc.data() };
+}
+
 // --- NOVO: Rota para verificar se já tem chamada no dia ---
 app.get('/chamada/verificar', async (req, res) => {
   try {
     const { turma_id, data } = req.query;
+    const chamada = await buscarChamadaPorTurmaEData(turma_id, data);
 
-    // Recria a lógica do Timestamp (Meio-dia) para bater com o banco
-    const timestamp = admin.firestore.Timestamp.fromDate(new Date(data + "T12:00:00"));
-
-    const snapshot = await db.collection('relatorios_aula')
-        .where('turma_id', '==', turma_id)
-        .where('data_aula', '==', timestamp)
-        .limit(1)
-        .get();
-
-    if (snapshot.empty) {
+    if (!chamada) {
       return res.json({ encontrada: false });
     }
 
-    // Se achou, devolve os dados para preencher a tela
-    const doc = snapshot.docs[0];
-    return res.json({ encontrada: true, id: doc.id, ...doc.data() });
+    return res.json({ encontrada: true, id: chamada.id, ...chamada.data });
 
   } catch (erro) {
     res.status(500).json({ erro: erro.message });
   }
 });
 
-// ATUALIZADO: Rota de Salvar (Com busca por intervalo de data)
+// ATUALIZADO: Rota de Salvar com idempotencia por turma/data
 app.post('/chamada', async (req, res) => {
   try {
     const { turma_id, oferta, alunos, data_aula, visitantes, professor, observacoes } = req.body;
 
-    // 1. Definição do Intervalo
-    // Adicionamos 'T00:00:00' e ajustamos o fuso se necessário, mas para debug vamos simples
-    const startData = new Date(data_aula + "T00:00:00");
-    const endData = new Date(data_aula + "T23:59:59");
-
-    // Converter para Timestamp do Firebase
-    const start = admin.firestore.Timestamp.fromDate(startData);
-    const end = admin.firestore.Timestamp.fromDate(endData);
-
-    // 2. Busca
-    const snapshot = await db.collection('relatorios_aula')
-        .where('turma_id', '==', turma_id)
-        .where('data_aula', '>=', start)
-        .where('data_aula', '<=', end)
-        .limit(1)
-        .get();
+    if (!turma_id || !data_aula || !Array.isArray(alunos)) {
+      return res.status(400).json({ erro: "Payload invalido para salvar chamada." });
+    }
 
     // Prepara dados para salvar
     const timestampPadrao = admin.firestore.Timestamp.fromDate(new Date(data_aula + "T12:00:00"));
@@ -513,16 +518,15 @@ app.post('/chamada', async (req, res) => {
       detalhes_alunos: alunos
     };
 
-    if (!snapshot.empty) {
-      // UPDATE
-      const docId = snapshot.docs[0].id;
-      await db.collection('relatorios_aula').doc(docId).set(dadosRelatorio, { merge: true });
-      res.json({ sucesso: true, mensagem: "Chamada atualizada!" });
-    } else {
-      // CREATE
-      const docRef = await db.collection('relatorios_aula').add(dadosRelatorio);
-      res.json({ sucesso: true, mensagem: "Nova chamada salva!" });
-    }
+    const chamadaExistente = await buscarChamadaPorTurmaEData(turma_id, data_aula);
+    const docId = chamadaExistente ? chamadaExistente.id : buildChamadaDocId(turma_id, data_aula);
+
+    await db.collection('relatorios_aula').doc(docId).set(dadosRelatorio, { merge: true });
+    res.json({
+      sucesso: true,
+      id: docId,
+      mensagem: chamadaExistente ? "Chamada atualizada!" : "Nova chamada salva!"
+    });
 
   } catch (erro) {
     console.error("ERRO NO CATCH:", erro);
