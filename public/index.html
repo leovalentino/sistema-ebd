@@ -104,11 +104,17 @@
 <body>
 
   <main class="container">
-    <nav>
-      <ul><li><strong>EBD Digital</strong></li></ul>
-      <ul>
+    <nav class="app-nav">
+      <div class="app-nav-bar">
+        <ul class="app-nav-brand"><li><strong>EBD Digital</strong></li></ul>
+        <button type="button" class="app-nav-toggle" aria-expanded="false" onclick="toggleMobileMenu(this)">
+          <span aria-hidden="true">☰</span><span>Menu</span>
+        </button>
+      </div>
+      <ul class="app-nav-links">
         <li><a href="dashboard.html" role="button" class="outline">Dashboard</a></li>
         <li><a href="frequencia.html" role="button" class="outline">Frequência</a></li>
+        <li><a href="financeiro.html" role="button" class="outline">Financeiro</a></li>
       </ul>
     </nav>
 

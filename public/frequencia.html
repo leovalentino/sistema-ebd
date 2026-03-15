@@ -180,9 +180,14 @@
 <body>
 
 <main class="container">
-  <nav>
-    <ul><li><strong>Ranking de Frequência</strong></li></ul>
-    <ul>
+  <nav class="app-nav">
+    <div class="app-nav-bar">
+      <ul class="app-nav-brand"><li><strong>Ranking de Frequência</strong></li></ul>
+      <button type="button" class="app-nav-toggle" aria-expanded="false" onclick="toggleMobileMenu(this)">
+        <span aria-hidden="true">☰</span><span>Menu</span>
+      </button>
+    </div>
+    <ul class="app-nav-links">
       <li><a href="index.html" role="button" class="outline">Chamada</a></li>
       <li><a href="dashboard.html" role="button" class="outline">Dashboard</a></li>
       <li><a href="cadastro.html" role="button" class="outline">Secretaria</a></li>

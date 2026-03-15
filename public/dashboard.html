@@ -73,6 +73,62 @@
     }
     .btn-sm:hover { background-color: #ffca28; }
 
+    .acoes-linha {
+      position: relative;
+      text-align: right;
+      width: 56px;
+    }
+
+    .menu-acoes-btn {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      margin-bottom: 0;
+      border: 1px solid #d0d7de;
+      border-radius: 999px;
+      background: #fff;
+      color: #333;
+      font-size: 1.2rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .menu-acoes-btn:hover {
+      background: #f5f5f5;
+    }
+
+    .menu-flutuante {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 180px;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.14);
+      padding: 6px;
+      z-index: 40;
+    }
+
+    .menu-flutuante button {
+      width: 100%;
+      margin: 0;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #b71c1c;
+      text-align: left;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .menu-flutuante button:hover {
+      background: #ffebee;
+    }
+
     /* Tabelas */
     table {
       width: 100%;
@@ -112,6 +168,45 @@
       font-size: 0.7rem;
       font-weight: 500;
       margin-left: 4px;
+    }
+
+    .paginacao-mes {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+      background: #f8f9fa;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      flex-wrap: wrap;
+    }
+
+    .paginacao-mes-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .paginacao-mes-info strong {
+      font-size: 1.1rem;
+      color: #222;
+    }
+
+    .paginacao-mes-info small {
+      color: #666;
+    }
+
+    .paginacao-mes-acoes {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .paginacao-mes-acoes button {
+      margin-bottom: 0;
+      min-width: 110px;
     }
 
     /* --- Drawer (Painel Lateral) --- */
@@ -180,6 +275,13 @@
     @media (max-width: 600px) {
       .header-data { flex-direction: column; gap: 10px; align-items: flex-start; }
       .info-extra { flex-direction: column; gap: 5px; }
+      .paginacao-mes {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .paginacao-mes-acoes button {
+        width: 100%;
+      }
 
       .drawer {
         width: 100%;
@@ -201,9 +303,14 @@
 <body>
 
 <main class="container">
-  <nav>
-    <ul><li><strong>Dashboard EBD</strong></li></ul>
-    <ul>
+  <nav class="app-nav">
+    <div class="app-nav-bar">
+      <ul class="app-nav-brand"><li><strong>Dashboard EBD</strong></li></ul>
+      <button type="button" class="app-nav-toggle" aria-expanded="false" onclick="toggleMobileMenu(this)">
+        <span aria-hidden="true">☰</span><span>Menu</span>
+      </button>
+    </div>
+    <ul class="app-nav-links">
       <li><a href="index.html" role="button" class="outline">Chamada</a></li>
       <li><a href="cadastro.html" role="button" class="outline">Secretaria</a></li>
       <li><a href="frequencia.html" role="button" class="outline">Frequência</a></li>
@@ -270,6 +377,15 @@
     'maternal': 6
   };
 
+  const MESES_LABEL = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+
+  let mesesDisponiveis = [];
+  let indiceMesAtual = 0;
+  let menuAcoesAbertoId = null;
+
   async function carregarDashboard() {
     try {
       const area = document.getElementById('area-relatorios');
@@ -321,7 +437,53 @@
         return;
       }
 
+      const gruposPorMes = {};
       datas.forEach(data => {
+        const chaveMes = obterChaveMes(data);
+        if (!gruposPorMes[chaveMes]) gruposPorMes[chaveMes] = [];
+        gruposPorMes[chaveMes].push(data);
+      });
+
+      mesesDisponiveis = Object.keys(gruposPorMes).sort((a, b) => b.localeCompare(a));
+      if (indiceMesAtual >= mesesDisponiveis.length) {
+        indiceMesAtual = 0;
+      }
+
+      renderizarMesAtual(area, gruposPorMes, grupos, mapaDiario, mapaTurmas);
+
+    } catch (erro) {
+      console.error(erro);
+      alert("Erro ao processar dados. Verifique o console.");
+    }
+  }
+
+  function renderizarMesAtual(area, gruposPorMes, grupos, mapaDiario, mapaTurmas) {
+    area.innerHTML = '';
+
+    if (mesesDisponiveis.length === 0) {
+      area.innerHTML = '<p>Nenhum relatório encontrado.</p>';
+      return;
+    }
+
+    const chaveMesAtual = mesesDisponiveis[indiceMesAtual];
+    const datasDoMes = gruposPorMes[chaveMesAtual] || [];
+    const [ano, mes] = chaveMesAtual.split('-');
+
+    const navegacao = document.createElement('div');
+    navegacao.className = 'paginacao-mes';
+    navegacao.innerHTML = `
+      <div class="paginacao-mes-info">
+        <strong>${MESES_LABEL[Number(mes) - 1]} de ${ano}</strong>
+        <small>${datasDoMes.length} ${datasDoMes.length === 1 ? 'chamada' : 'chamadas'} registrada(s)</small>
+      </div>
+      <div class="paginacao-mes-acoes">
+        <button class="secondary outline" onclick="mudarMes(1)" ${indiceMesAtual >= mesesDisponiveis.length - 1 ? 'disabled' : ''}>Mês anterior</button>
+        <button class="secondary outline" onclick="mudarMes(-1)" ${indiceMesAtual <= 0 ? 'disabled' : ''}>Mês seguinte</button>
+      </div>
+    `;
+    area.appendChild(navegacao);
+
+    datasDoMes.forEach(data => {
         const grupo = grupos[data];
         const infoDia = mapaDiario[data] || {};
 
@@ -390,6 +552,7 @@
                         <th title="Soma de Membros + Visitantes" class="bg-green-light border-bottom-green">Total</th>
                         <th>Oferta</th>
                         <th>Bib/Rev</th>
+                        <th class="text-center">...</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -411,6 +574,7 @@
                   ? `<div class="prof-info">Prof. ${aula.professor}</div>`
                   : "";
 
+          const nomeTurma = mapaTurmas[aula.turma_id] || 'Turma Desconhecida';
           let htmlObsAula = aula.observacoes
                   ? `<span tabindex="0" data-tooltip="${aula.observacoes.replace(/"/g, '&quot;')}">ℹ️</span>`
                   : "";
@@ -423,7 +587,7 @@
           return `
                             <tr>
                                 <td>
-                                    <strong>${mapaTurmas[aula.turma_id] || 'Turma Desconhecida'}</strong>
+                                    <strong>${nomeTurma}</strong>
                                     ${nomeProf}
                                     <div style="margin-top:5px">
                                         ${htmlObsAula} ${badgeJustif}
@@ -437,6 +601,26 @@
                                 <td class="text-center bg-green-light" style="font-weight:bold;">${totalPessoasSala}</td>
                                 <td class="${aula.oferta_total > 0 ? 'text-blue' : 'text-muted'}">${formatarMoeda(aula.oferta_total)}</td>
                                 <td class="text-center" style="font-size:0.8rem">(B)✝️ ${tBib}<br>(R)📘 ${tRev}</td>
+                                <td class="acoes-linha">
+                                    <button
+                                      type="button"
+                                      class="menu-acoes-btn"
+                                      aria-label="Abrir ações da linha"
+                                      onclick="toggleMenuAcoes(event, '${aula.id}')"
+                                    >
+                                      ...
+                                    </button>
+                                    ${menuAcoesAbertoId === aula.id ? `
+                                      <div class="menu-flutuante" onclick="event.stopPropagation()">
+                                        <button
+                                          type="button"
+                                          onclick="confirmarExclusaoRelatorio('${aula.id}', '${codificarParametro(nomeTurma)}', '${codificarParametro(data)}')"
+                                        >
+                                          Excluir chamada
+                                        </button>
+                                      </div>
+                                    ` : ''}
+                                </td>
                             </tr>
                         `;
         }).join('')}
@@ -453,17 +637,13 @@
                         <td class="text-center bg-green-total">${somaTotalPessoasDia}</td>
                         <td class="text-blue">${formatarMoeda(somaOferta)}</td>
                         <td class="text-center" style="font-size:0.8rem">(B)✝️ ${somaBib}<br>(R)📘 ${somaRev}</td>
+                        <td></td>
                     </tr>
                 </tfoot>
             </table>
         `;
         area.appendChild(divGrupo);
       });
-
-    } catch (erro) {
-      console.error(erro);
-      alert("Erro ao processar dados. Verifique o console.");
-    }
   }
 
   // Função Auxiliar: Remove acentos e deixa minúsculo
@@ -493,6 +673,88 @@
   function formatarMoeda(valor) {
     return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
+
+  function codificarParametro(texto) {
+    return encodeURIComponent(texto || '');
+  }
+
+  function obterChaveMes(dataFormatada) {
+    const [, mes, ano] = dataFormatada.split('/');
+    return `${ano}-${String(mes).padStart(2, '0')}`;
+  }
+
+  function mudarMes(direcao) {
+    const novoIndice = indiceMesAtual + direcao;
+    if (novoIndice < 0 || novoIndice >= mesesDisponiveis.length) {
+      return;
+    }
+
+    indiceMesAtual = novoIndice;
+    carregarDashboard();
+  }
+
+  function toggleMenuAcoes(event, relatorioId) {
+    event.stopPropagation();
+    menuAcoesAbertoId = menuAcoesAbertoId === relatorioId ? null : relatorioId;
+    carregarDashboard();
+  }
+
+  function fecharMenuAcoes() {
+    if (!menuAcoesAbertoId) return;
+    menuAcoesAbertoId = null;
+    carregarDashboard();
+  }
+
+  async function confirmarExclusaoRelatorio(relatorioId, nomeTurmaCodificado, dataCodificada) {
+    menuAcoesAbertoId = null;
+    const nomeTurma = decodeURIComponent(nomeTurmaCodificado);
+    const data = decodeURIComponent(dataCodificada);
+    const textoConfirmacao = 'EXCLUIR';
+
+    const desejaContinuar = confirm(
+      `Atenção: você está prestes a excluir a chamada da turma "${nomeTurma}" do dia ${data}.\n\n` +
+      `Essa ação apaga apenas esta turma nesta data e não pode ser desfeita.\n\n` +
+      `Clique em "OK" somente se tiver certeza.`
+    );
+
+    if (!desejaContinuar) return;
+
+    const digitado = prompt(
+      `Confirmação de segurança\n\n` +
+      `Turma: ${nomeTurma}\n` +
+      `Data: ${data}\n\n` +
+      `Para excluir, digite exatamente: ${textoConfirmacao}`
+    );
+
+    if (digitado !== textoConfirmacao) {
+      alert('Exclusão cancelada. O texto digitado não confere.');
+      return;
+    }
+
+    const ultimaConfirmacao = confirm(
+      `Última confirmação:\n\nDeseja realmente excluir a chamada da turma "${nomeTurma}" em ${data}?`
+    );
+
+    if (!ultimaConfirmacao) return;
+
+    try {
+      const res = await fetch(`${API_URL}/relatorios/${relatorioId}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        throw new Error('Falha ao excluir o relatório.');
+      }
+
+      alert(`Chamada da turma "${nomeTurma}" em ${data} excluída com sucesso.`);
+      carregarDashboard();
+    } catch (erro) {
+      console.error(erro);
+      alert('Não foi possível excluir a chamada. Tente novamente.');
+    }
+  }
+
+  document.addEventListener('click', fecharMenuAcoes);
 
   async function abrirPanel(data) {
     document.getElementById('lbl-data-painel').innerText = data;
