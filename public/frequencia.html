@@ -221,8 +221,11 @@
       <span>Período: <strong id="lbl-periodo"></strong></span>
       <span style="margin-left: 20px;">Total de aulas: <strong id="lbl-total-aulas"></strong></span>
     </div>
-    <div>
+    <div style="display: flex; align-items: center; gap: 15px;">
       <span>Alunos encontrados: <strong id="lbl-total-alunos"></strong></span>
+      <button onclick="compartilharWhatsApp()" style="margin: 0; padding: 8px 16px; font-size: 0.85rem; background: #25D366; border-color: #25D366;">
+        📲 Compartilhar
+      </button>
     </div>
   </section>
 
@@ -446,6 +449,64 @@
   function formatarData(dataISO) {
     const [ano, mes, dia] = dataISO.split('-');
     return `${dia}/${mes}/${ano}`;
+  }
+
+  function compartilharWhatsApp() {
+    if (dadosRanking.length === 0) {
+      alert('Nenhum dado para compartilhar. Faça uma busca primeiro.');
+      return;
+    }
+
+    const periodo = document.getElementById('lbl-periodo').innerText;
+    const totalAulas = document.getElementById('lbl-total-aulas').innerText;
+    const turmaFiltro = document.getElementById('filtro-turma');
+    const nomeTurma = turmaFiltro.value ? turmaFiltro.options[turmaFiltro.selectedIndex].text : 'Todas';
+
+    // Filtra dados atuais (respeitando filtros aplicados)
+    const turmaId = turmaFiltro.value;
+    const minFaltasCons = parseInt(document.getElementById('filtro-faltas-cons').value) || 0;
+
+    let dadosFiltrados = dadosRanking;
+    if (turmaId) {
+      dadosFiltrados = dadosFiltrados.filter(a => a.turma_id === turmaId);
+    }
+    if (minFaltasCons > 0) {
+      dadosFiltrados = dadosFiltrados.filter(a => (a.faltas_consecutivas || 0) >= minFaltasCons);
+    }
+
+    // Ordena por presenças
+    const ordenados = [...dadosFiltrados].sort((a, b) => b.presencas - a.presencas);
+
+    // Monta o texto
+    let texto = `📊 *Frequência EBD*\n`;
+    texto += `📅 Período: ${periodo}\n`;
+    texto += `📚 Total de aulas: ${totalAulas}\n`;
+    texto += `👥 Turma: ${nomeTurma}\n`;
+    texto += `\n`;
+
+    ordenados.forEach(aluno => {
+      const percentual = parseFloat(aluno.percentual);
+      const status = percentual >= 75 ? '✅' : percentual >= 50 ? '⚠️' : '❌';
+      texto += `${status} ${aluno.nome} - ${aluno.presencas}/${aluno.total_aulas} (${aluno.percentual}%)\n`;
+    });
+
+    // Alunos com faltas consecutivas >= 3
+    const comFaltasConsec = ordenados.filter(a => (a.faltas_consecutivas || 0) >= 3);
+    if (comFaltasConsec.length > 0) {
+      texto += `\n⚠️ *Atenção - Faltas Consecutivas:*\n`;
+      comFaltasConsec.forEach(aluno => {
+        texto += `• ${aluno.nome} (${aluno.turma_nome}) - ${aluno.faltas_consecutivas} faltas seguidas\n`;
+      });
+    }
+
+    texto += `\n_Gerado pelo Sistema EBD_`;
+
+    // Abre WhatsApp com o texto
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const urlWhatsApp = isMobile
+      ? `https://wa.me/?text=${encodeURIComponent(texto)}`
+      : `https://web.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+    window.open(urlWhatsApp, '_blank');
   }
 
   // Inicializa
