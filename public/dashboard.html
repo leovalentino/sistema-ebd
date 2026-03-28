@@ -129,19 +129,56 @@
       background: #ffebee;
     }
 
+    .grupo-data {
+      overflow: visible;
+    }
+
+    .table-sticky-wrapper {
+      margin-bottom: 40px;
+      border-radius: 0 0 8px 8px;
+      overflow-x: auto;
+      overflow-y: visible;
+      background: white;
+      -webkit-overflow-scrolling: touch;
+    }
+
     /* Tabelas */
     table {
       width: 100%;
+      min-width: 860px;
       font-size: 0.9rem;
       background: white;
-      margin-bottom: 40px;
-      border-radius: 8px;
-      overflow: hidden; /* Para bordas arredondadas */
+      margin-bottom: 0;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    thead th {
+      background-color: #e0e0e0;
+      box-shadow: 0 1px 0 #cfcfcf;
     }
     th { background-color: #e0e0e0; color: #111; padding: 10px; text-align: left; }
     td { padding: 10px; color: #222; }
     tfoot { background-color: #cfd8dc !important; color: #000 !important; font-weight: 800; }
     h4 small { color: #444 !important; }
+
+    .dashboard-table-floating {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 120;
+      display: none;
+      overflow: hidden;
+      background: white;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+      pointer-events: none;
+      border-radius: 0 0 8px 8px;
+    }
+
+    .dashboard-table-floating table {
+      margin: 0;
+      min-width: 860px;
+      background: white;
+    }
 
     /* Classes Utilitárias para Tabela (substituem styles inline) */
     .text-center { text-align: center; }
@@ -275,6 +312,10 @@
     @media (max-width: 600px) {
       .header-data { flex-direction: column; gap: 10px; align-items: flex-start; }
       .info-extra { flex-direction: column; gap: 5px; }
+      .table-sticky-wrapper {
+        margin-left: -2px;
+        margin-right: -2px;
+      }
       .paginacao-mes {
         flex-direction: column;
         align-items: stretch;
@@ -385,6 +426,7 @@
   let mesesDisponiveis = [];
   let indiceMesAtual = 0;
   let menuAcoesAbertoId = null;
+  let stickyHeaders = [];
 
   async function carregarDashboard() {
     try {
@@ -450,6 +492,7 @@
       }
 
       renderizarMesAtual(area, gruposPorMes, grupos, mapaDiario, mapaTurmas);
+      inicializarCabecalhosFlutuantes();
 
     } catch (erro) {
       console.error(erro);
@@ -540,7 +583,8 @@
                 ${htmlClima} ${htmlSec} ${htmlObs}
             </div>
 
-            <table role="grid">
+            <div class="table-sticky-wrapper">
+              <table role="grid">
                 <thead>
                     <tr>
                         <th>Turma</th>
@@ -643,10 +687,103 @@
                         <td></td>
                     </tr>
                 </tfoot>
-            </table>
+              </table>
+            </div>
         `;
         area.appendChild(divGrupo);
       });
+  }
+
+  function destruirCabecalhosFlutuantes() {
+    stickyHeaders.forEach(item => {
+      item.wrapper.removeEventListener('scroll', item.onScroll);
+      item.floating.remove();
+    });
+
+    stickyHeaders = [];
+    window.removeEventListener('scroll', atualizarCabecalhosFlutuantes);
+    window.removeEventListener('resize', atualizarCabecalhosFlutuantes);
+  }
+
+  function inicializarCabecalhosFlutuantes() {
+    destruirCabecalhosFlutuantes();
+
+    const wrappers = Array.from(document.querySelectorAll('.table-sticky-wrapper'));
+    stickyHeaders = wrappers.map((wrapper, index) => {
+      const table = wrapper.querySelector('table');
+      const thead = table?.querySelector('thead');
+
+      if (!table || !thead) {
+        return null;
+      }
+
+      const floating = document.createElement('div');
+      floating.className = 'dashboard-table-floating';
+      floating.dataset.stickyIndex = String(index);
+
+      const floatingTable = document.createElement('table');
+      floatingTable.setAttribute('aria-hidden', 'true');
+      floatingTable.innerHTML = `<thead>${thead.innerHTML}</thead>`;
+      floating.appendChild(floatingTable);
+      document.body.appendChild(floating);
+
+      const item = { wrapper, table, thead, floating, floatingTable, onScroll: null };
+
+      item.onScroll = () => sincronizarCabecalhoFlutuante(item);
+      wrapper.addEventListener('scroll', item.onScroll, { passive: true });
+
+      sincronizarCabecalhoFlutuante(item);
+      return item;
+    }).filter(Boolean);
+
+    if (stickyHeaders.length > 0) {
+      window.addEventListener('scroll', atualizarCabecalhosFlutuantes, { passive: true });
+      window.addEventListener('resize', atualizarCabecalhosFlutuantes, { passive: true });
+      atualizarCabecalhosFlutuantes();
+    }
+  }
+
+  function sincronizarCabecalhoFlutuante(item) {
+    const originalCols = Array.from(item.thead.querySelectorAll('th'));
+    const floatingCols = Array.from(item.floatingTable.querySelectorAll('th'));
+
+    floatingCols.forEach((th, index) => {
+      const largura = originalCols[index]?.getBoundingClientRect().width || 0;
+      th.style.width = `${largura}px`;
+      th.style.minWidth = `${largura}px`;
+      th.style.maxWidth = `${largura}px`;
+      th.style.boxSizing = 'border-box';
+    });
+
+    item.floatingTable.style.width = `${item.table.offsetWidth}px`;
+    item.floatingTable.style.transform = `translateX(-${item.wrapper.scrollLeft}px)`;
+  }
+
+  function atualizarCabecalhosFlutuantes() {
+    if (stickyHeaders.length === 0) return;
+
+    let cabecalhoAtivo = null;
+
+    stickyHeaders.forEach(item => {
+      item.floating.style.display = 'none';
+      const rect = item.wrapper.getBoundingClientRect();
+      const headerHeight = item.thead.getBoundingClientRect().height || 0;
+
+      if (!cabecalhoAtivo && rect.top <= 0 && rect.bottom > headerHeight) {
+        cabecalhoAtivo = item;
+      }
+    });
+
+    if (!cabecalhoAtivo) return;
+
+    sincronizarCabecalhoFlutuante(cabecalhoAtivo);
+
+    const rect = cabecalhoAtivo.wrapper.getBoundingClientRect();
+    const left = Math.max(rect.left, 0);
+    const maxWidth = Math.max(window.innerWidth - left, 0);
+    cabecalhoAtivo.floating.style.display = 'block';
+    cabecalhoAtivo.floating.style.left = `${left}px`;
+    cabecalhoAtivo.floating.style.width = `${Math.min(rect.width, maxWidth)}px`;
   }
 
   // Função Auxiliar: Remove acentos e deixa minúsculo
