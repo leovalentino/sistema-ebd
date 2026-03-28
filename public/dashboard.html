@@ -551,7 +551,8 @@
                         <th>Visit.</th>
                         <th title="Soma de Membros + Visitantes" class="bg-green-light border-bottom-green">Total</th>
                         <th>Oferta</th>
-                        <th>Bib/Rev</th>
+                        <th>Bíb.</th>
+                        <th>Rev.</th>
                         <th class="text-center">...</th>
                     </tr>
                 </thead>
@@ -600,7 +601,8 @@
                                 <td class="text-center bg-blue-light">${vis.quantidade}</td>
                                 <td class="text-center bg-green-light" style="font-weight:bold;">${totalPessoasSala}</td>
                                 <td class="${aula.oferta_total > 0 ? 'text-blue' : 'text-muted'}">${formatarMoeda(aula.oferta_total)}</td>
-                                <td class="text-center" style="font-size:0.8rem">(B)✝️ ${tBib}<br>(R)📘 ${tRev}</td>
+                                <td class="text-center">${tBib}</td>
+                                <td class="text-center">${tRev}</td>
                                 <td class="acoes-linha">
                                     <button
                                       type="button"
@@ -636,7 +638,8 @@
                         <td class="text-center bg-blue-light">${somaVis}</td>
                         <td class="text-center bg-green-total">${somaTotalPessoasDia}</td>
                         <td class="text-blue">${formatarMoeda(somaOferta)}</td>
-                        <td class="text-center" style="font-size:0.8rem">(B)✝️ ${somaBib}<br>(R)📘 ${somaRev}</td>
+                        <td class="text-center">${somaBib}</td>
+                        <td class="text-center">${somaRev}</td>
                         <td></td>
                     </tr>
                 </tfoot>

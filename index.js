@@ -153,19 +153,20 @@ app.get('/financeiro/resumo', async (req, res) => {
       const chave = `${nomesTrimestres[numTrimestre]}/${ano}`;
 
       if (!dadosPorTrimestre[chave]) {
-        dadosPorTrimestre[chave] = { entradas: 0, saidas: 0 };
+        dadosPorTrimestre[chave] = { entradas_aulas: 0, entradas_avulsas: 0, saidas: 0 };
       }
 
-      dadosPorTrimestre[chave].entradas += valor;
+      dadosPorTrimestre[chave].entradas_aulas += valor;
       totalGeral += valor;
     });
 
     // Transforma em array inicial
     const relatorioFinal = Object.keys(dadosPorTrimestre).map(chave => ({
       periodo: chave,
-      entradas: dadosPorTrimestre[chave].entradas,
+      entradas_aulas: dadosPorTrimestre[chave].entradas_aulas,
+      entradas_avulsas: dadosPorTrimestre[chave].entradas_avulsas,
       saidas: dadosPorTrimestre[chave].saidas,
-      total: dadosPorTrimestre[chave].entradas - dadosPorTrimestre[chave].saidas
+      total: dadosPorTrimestre[chave].entradas_aulas + dadosPorTrimestre[chave].entradas_avulsas - dadosPorTrimestre[chave].saidas
     }));
 
     // --- LANÇAMENTOS AVULSOS (Novos) ---
@@ -191,16 +192,16 @@ app.get('/financeiro/resumo', async (req, res) => {
       // Adiciona ao histórico por trimestre
       let itemExistente = relatorioFinal.find(r => r.periodo === chave);
       if (!itemExistente) {
-        itemExistente = { periodo: chave, entradas: 0, saidas: 0, total: 0 };
+        itemExistente = { periodo: chave, entradas_aulas: 0, entradas_avulsas: 0, saidas: 0, total: 0 };
         relatorioFinal.push(itemExistente);
       }
 
       if (tipo === 'entrada') {
-        itemExistente.entradas += valor;
+        itemExistente.entradas_avulsas += valor;
       } else {
         itemExistente.saidas += valor;
       }
-      itemExistente.total = itemExistente.entradas - itemExistente.saidas;
+      itemExistente.total = itemExistente.entradas_aulas + itemExistente.entradas_avulsas - itemExistente.saidas;
 
       listaLancamentos.push({ id: doc.id, ...data, data_formatada: dataJS.toLocaleDateString('pt-BR') });
     });

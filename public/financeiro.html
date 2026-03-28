@@ -100,7 +100,9 @@
         <thead>
         <tr>
             <th>Trimestre/Ano</th>
-            <th>Entradas (Ofertas)</th>
+            <th>Ofertas Aulas</th>
+            <th>Entradas Avulsas</th>
+            <th>Total Entradas</th>
             <th>Saídas</th>
             <th>Saldo Final</th>
         </tr>
@@ -137,19 +139,23 @@
             tbodyMeses.innerHTML = '';
 
             if (dados.historico.length === 0) {
-                tbodyMeses.innerHTML = '<tr><td colspan="4">Nenhuma oferta registrada.</td></tr>';
+                tbodyMeses.innerHTML = '<tr><td colspan="6">Nenhuma oferta registrada.</td></tr>';
             } else {
                 dados.historico.forEach(item => {
                     const tr = document.createElement('tr');
-                    const entradasFmt = item.entradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const entradasAulasFmt = item.entradas_aulas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const entradasAvulsasFmt = item.entradas_avulsas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const totalEntradasFmt = (item.entradas_aulas + item.entradas_avulsas).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     const saidasFmt = item.saidas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     const saldoFmt = item.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    
+
                     const corSaldo = item.total >= 0 ? '#2e7d32' : '#c62828';
 
                     tr.innerHTML = `
                         <td>${item.periodo}</td>
-                        <td style="color: #2e7d32;">${entradasFmt}</td>
+                        <td style="color: #2e7d32;">${entradasAulasFmt}</td>
+                        <td style="color: #2e7d32;">${entradasAvulsasFmt}</td>
+                        <td style="color: #2e7d32; font-weight:bold;">${totalEntradasFmt}</td>
                         <td style="color: #c62828;">${saidasFmt}</td>
                         <td style="font-weight:bold; color: ${corSaldo};">${saldoFmt}</td>
                     `;

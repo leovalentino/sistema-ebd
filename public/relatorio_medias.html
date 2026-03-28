@@ -34,23 +34,24 @@
         }
         .grid-resumo {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
             margin-top: 15px;
         }
         .item-resumo {
-            padding: 10px;
+            padding: 8px;
             background: rgba(255, 255, 255, 0.5);
             border-radius: 4px;
+            text-align: center;
         }
         .valor-media {
-            font-size: 1.5em;
+            font-size: 1.2em;
             font-weight: bold;
             color: #1565c0;
             display: block;
         }
         .label-resumo {
-            font-size: 0.8em;
+            font-size: 0.7em;
             color: #333; /* Aumentado contraste de #555 para #333 */
             font-weight: bold;
             text-transform: uppercase;
@@ -128,6 +129,14 @@
                     <span class="label-resumo">Oferta</span>
                     <span id="resumo-oferta" class="valor-media">R$ 0</span>
                 </div>
+                <div class="item-resumo">
+                    <span class="label-resumo">Bíblias</span>
+                    <span id="resumo-bib" class="valor-media">0</span>
+                </div>
+                <div class="item-resumo">
+                    <span class="label-resumo">Revistas</span>
+                    <span id="resumo-rev" class="valor-media">0</span>
+                </div>
             </div>
         </div>
 
@@ -144,7 +153,8 @@
                     <th class="text-center">Visit.</th>
                     <th class="text-center bg-green-light">Total</th>
                     <th class="text-right">Oferta</th>
-                    <th class="text-center">Bib/Rev</th>
+                    <th class="text-center">Bíb.</th>
+                    <th class="text-center">Rev.</th>
                 </tr>
             </thead>
             <tbody id="tabela-medias">
@@ -210,6 +220,8 @@
             document.getElementById('resumo-vis').innerText = dados.geral.media_visitantes.toFixed(1);
             document.getElementById('resumo-total').innerText = dados.geral.media_total.toFixed(1);
             document.getElementById('resumo-oferta').innerText = formatarMoeda(dados.geral.media_oferta);
+            document.getElementById('resumo-bib').innerText = dados.geral.media_biblias.toFixed(1);
+            document.getElementById('resumo-rev').innerText = dados.geral.media_revistas.toFixed(1);
 
             document.getElementById('info-total-aulas').innerText = `Baseado em ${dados.total_domingos} domingos (${dados.total_geral_aulas} chamadas).`;
 
@@ -231,10 +243,8 @@
                     <td class="text-center">${item.media_visitantes.toFixed(1)}</td>
                     <td class="text-center" style="font-weight:bold">${item.media_total.toFixed(1)}</td>
                     <td class="text-right text-blue">${formatarMoeda(item.media_oferta)}</td>
-                    <td class="text-center" style="font-size:0.8rem">
-                        ✝️ ${item.media_biblias.toFixed(1)}<br>
-                        📘 ${item.media_revistas.toFixed(1)}
-                    </td>
+                    <td class="text-center">${item.media_biblias.toFixed(1)}</td>
+                    <td class="text-center">${item.media_revistas.toFixed(1)}</td>
                 `;
                 tbody.appendChild(tr);
             });
