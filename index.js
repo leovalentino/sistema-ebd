@@ -255,6 +255,20 @@ app.delete('/financeiro/lancamentos/:id', async (req, res) => {
   }
 });
 
+app.patch('/financeiro/lancamentos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { valor } = req.body;
+    if (valor === undefined || isNaN(parseFloat(valor))) {
+      return res.status(400).json({ erro: 'Valor inválido' });
+    }
+    await db.collection('lancamentos_financeiros').doc(id).update({ valor: parseFloat(valor) });
+    res.json({ sucesso: true });
+  } catch (erro) {
+    res.status(500).json({ erro: erro.message });
+  }
+});
+
 // Rota: Criar Nova Turma
 app.post('/turmas', async (req, res) => {
   try {

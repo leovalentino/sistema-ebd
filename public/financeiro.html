@@ -80,6 +80,11 @@
     </div>
 
     <h3>Lançamentos Avulsos</h3>
+    <div style="margin-bottom: 12px;">
+        <label for="filtro-trimestre" style="margin-right: 8px; color: white;">Trimestre:</label>
+        <select id="filtro-trimestre" style="width: auto; display: inline-block;" onchange="renderLancamentos()">
+        </select>
+    </div>
     <table style="margin-bottom: 40px;">
         <thead>
         <tr>
@@ -129,6 +134,51 @@
     // Setar data de hoje no input
     document.getElementById('input-data').value = new Date().toISOString().split('T')[0];
 
+    const nomesTrimestres = { 1: 'Jan-Mar', 2: 'Abr-Jun', 3: 'Jul-Set', 4: 'Out-Dez' };
+    let todosLancamentos = [];
+
+    function periodoDoLancamento(item) {
+        const partes = item.data_formatada.split('/'); // DD/MM/YYYY
+        const mes = parseInt(partes[1]);
+        const ano = partes[2];
+        const tri = Math.ceil(mes / 3);
+        return `${nomesTrimestres[tri]}/${ano}`;
+    }
+
+    function periodoAtual() {
+        const agora = new Date();
+        const tri = Math.ceil((agora.getMonth() + 1) / 3);
+        return `${nomesTrimestres[tri]}/${agora.getFullYear()}`;
+    }
+
+    function renderLancamentos() {
+        const filtro = document.getElementById('filtro-trimestre').value;
+        const lista = todosLancamentos.filter(i => periodoDoLancamento(i) === filtro);
+        const tbody = document.getElementById('tabela-lancamentos');
+        tbody.innerHTML = '';
+        const isAdmin = localStorage.getItem('adm_logado') === 'sim';
+
+        if (lista.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5">Nenhum lançamento avulso.</td></tr>';
+            return;
+        }
+        lista.forEach(item => {
+            const tr = document.createElement('tr');
+            const valorFormatado = item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            tr.innerHTML = `
+                <td>${item.data_formatada}</td>
+                <td>${item.descricao}</td>
+                <td class="${item.tipo}">${item.tipo.toUpperCase()}</td>
+                <td class="${item.tipo}">${valorFormatado}</td>
+                <td class="col-admin" style="${isAdmin ? '' : 'display:none;'}">
+                    <button class="outline" style="padding: 5px 10px; font-size: 0.8em; margin-right: 4px;" onclick="editarValor('${item.id}', ${item.valor})">Editar valor</button>
+                    <button class="outline contrast" style="padding: 5px 10px; font-size: 0.8em;" onclick="excluirLancamento('${item.id}')">Excluir</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
     async function carregarFinanceiro() {
         try {
             const res = await fetch(`${API_URL}/financeiro/resumo`);
@@ -163,34 +213,49 @@
                 });
             }
 
-            // Tabela Lançamentos Avulsos
-            const tbodyLancamentos = document.getElementById('tabela-lancamentos');
-            tbodyLancamentos.innerHTML = '';
+            // Popula filtro de trimestre com períodos presentes nos lançamentos
+            todosLancamentos = dados.lancamentos;
+            const periodos = [...new Set(todosLancamentos.map(periodoDoLancamento))];
+            const sel = document.getElementById('filtro-trimestre');
+            const valorAtual = sel.value || periodoAtual();
+            sel.innerHTML = '';
+            periodos.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = p;
+                if (p === valorAtual) opt.selected = true;
+                sel.appendChild(opt);
+            });
 
-            if (dados.lancamentos.length === 0) {
-                tbodyLancamentos.innerHTML = '<tr><td colspan="5">Nenhum lançamento avulso.</td></tr>';
-            } else {
-                dados.lancamentos.forEach(item => {
-                    const tr = document.createElement('tr');
-                    const valorFormatado = item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    const isAdmin = localStorage.getItem('adm_logado') === 'sim';
-
-                    tr.innerHTML = `
-                        <td>${item.data_formatada}</td>
-                        <td>${item.descricao}</td>
-                        <td class="${item.tipo}">${item.tipo.toUpperCase()}</td>
-                        <td class="${item.tipo}">${valorFormatado}</td>
-                        <td class="col-admin" style="${isAdmin ? '' : 'display:none;'}">
-                            <button class="outline contrast" style="padding: 5px 10px; font-size: 0.8em;" onclick="excluirLancamento('${item.id}')">Excluir</button>
-                        </td>
-                    `;
-                    tbodyLancamentos.appendChild(tr);
-                });
-            }
+            renderLancamentos();
 
         } catch (erro) {
             console.error(erro);
             alert('Erro ao carregar dados financeiros.');
+        }
+    }
+
+    async function editarValor(id, valorAtual) {
+        const novoValor = prompt('Novo valor (R$):', valorAtual.toFixed(2).replace('.', ','));
+        if (novoValor === null) return;
+        const valorNum = parseFloat(novoValor.replace(',', '.'));
+        if (isNaN(valorNum) || valorNum <= 0) {
+            alert('Valor inválido.');
+            return;
+        }
+        try {
+            const res = await fetch(`${API_URL}/financeiro/lancamentos/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ valor: valorNum })
+            });
+            if (res.ok) {
+                carregarFinanceiro();
+            } else {
+                alert('Erro ao atualizar valor.');
+            }
+        } catch (e) {
+            alert('Erro na conexão.');
         }
     }
 
