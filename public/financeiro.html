@@ -191,6 +191,13 @@
             if (dados.historico.length === 0) {
                 tbodyMeses.innerHTML = '<tr><td colspan="6">Nenhuma oferta registrada.</td></tr>';
             } else {
+                const triOrdem = { 'Jan-Mar': 1, 'Abr-Jun': 2, 'Jul-Set': 3, 'Out-Dez': 4 };
+                dados.historico.sort((a, b) => {
+                    const [nA, anoA] = a.periodo.split('/');
+                    const [nB, anoB] = b.periodo.split('/');
+                    if (anoB !== anoA) return parseInt(anoB) - parseInt(anoA);
+                    return triOrdem[nB] - triOrdem[nA];
+                });
                 dados.historico.forEach(item => {
                     const tr = document.createElement('tr');
                     const entradasAulasFmt = item.entradas_aulas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

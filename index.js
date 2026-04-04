@@ -610,12 +610,17 @@ app.get('/relatorios/frequencia', async (req, res) => {
 
     // Agrega dados por aluno
     const frequenciaPorAluno = {};
-    let totalAulas = 0;
+    const datasDistintas = new Set();
     const aulasPorTurma = {}; // Para contar aulas por turma
 
     snapshot.forEach(doc => {
       const data = doc.data();
       const turmaId = data.turma_id;
+
+      // Conta datas distintas (domingos únicos)
+      if (data.data_aula) {
+        datasDistintas.add(data.data_aula.toDate().toISOString().split('T')[0]);
+      }
 
       // Conta aulas por turma
       if (!aulasPorTurma[turmaId]) {
@@ -668,15 +673,14 @@ app.get('/relatorios/frequencia', async (req, res) => {
     });
 
     // Converte para array e calcula percentual
-    // O percentual considera apenas aulas sem falta justificada (presencas / (total - justificadas))
+    // Justificadas não afetam o cálculo: presencas / total_aulas
     const ranking = Object.values(frequenciaPorAluno)
       .map(aluno => {
         const { _faltas_atuais, ...dadosAluno } = aluno; // Remove campo auxiliar
-        const aulasContabilizadas = dadosAluno.total_aulas - dadosAluno.faltas_justificadas;
         return {
           ...dadosAluno,
-          percentual: aulasContabilizadas > 0
-            ? ((dadosAluno.presencas / aulasContabilizadas) * 100).toFixed(2)
+          percentual: dadosAluno.total_aulas > 0
+            ? ((dadosAluno.presencas / dadosAluno.total_aulas) * 100).toFixed(2)
             : "0.00"
         };
       })
@@ -684,7 +688,7 @@ app.get('/relatorios/frequencia', async (req, res) => {
 
     res.json({
       periodo: { inicio: data_inicio, fim: data_fim },
-      total_relatorios: snapshot.size,
+      total_relatorios: datasDistintas.size,
       ranking: ranking
     });
 

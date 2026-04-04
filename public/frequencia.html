@@ -148,6 +148,16 @@
       margin-bottom: 10px;
     }
 
+    @media print {
+      .app-nav, .filtros, button { display: none !important; }
+      .info-periodo { border: none; background: none; padding: 0; margin-bottom: 12px; }
+      body { padding: 0; margin: 0; }
+      table { page-break-inside: auto; font-size: 0.8rem; }
+      tr { page-break-inside: avoid; }
+      h3 { page-break-after: avoid; margin-top: 20px; }
+      .percentual-bar { display: none; }
+    }
+
     @media (max-width: 768px) {
       .filtros {
         flex-direction: column;
@@ -226,6 +236,9 @@
       <button onclick="compartilharWhatsApp()" style="margin: 0; padding: 8px 16px; font-size: 0.85rem; background: #25D366; border-color: #25D366;">
         📲 Compartilhar
       </button>
+      <button onclick="exportarPDF()" style="margin: 0; padding: 8px 16px; font-size: 0.85rem; background: #1565c0; border-color: #1565c0;">
+        📄 Exportar PDF
+      </button>
     </div>
   </section>
 
@@ -244,6 +257,28 @@
   // Dados em memória para filtro
   let dadosRanking = [];
   let totalRelatorios = 0;
+
+  const ORDEM_TURMAS = {
+    'adultos': 1,
+    'discipulados': 2,
+    'jovens': 3,
+    'juvenis': 4,
+    'primarios': 5,
+    'maternal': 6
+  };
+
+  function limparTexto(texto) {
+    if (!texto) return "";
+    return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function obterPesoTurma(nomeTurma) {
+    const nomeLimpo = limparTexto(nomeTurma);
+    for (const [chave, peso] of Object.entries(ORDEM_TURMAS)) {
+      if (nomeLimpo.includes(chave)) return peso;
+    }
+    return 99;
+  }
 
   // Define datas padrão (último mês)
   function definirDatasIniciais() {
@@ -355,95 +390,100 @@
       return;
     }
 
-    // Reordena para recalcular posições após filtro
-    const dadosOrdenados = [...dados].sort((a, b) => b.presencas - a.presencas);
+    // Agrupa por turma mantendo ordem alfabética de turma
+    const grupos = {};
+    dados.forEach(aluno => {
+      const turma = aluno.turma_nome || 'Sem Turma';
+      if (!grupos[turma]) grupos[turma] = [];
+      grupos[turma].push(aluno);
+    });
 
-    let html = `
-      <table role="grid">
-        <thead>
+    const turmasOrdenadas = Object.keys(grupos).sort((a, b) => obterPesoTurma(a) - obterPesoTurma(b));
+
+    function renderLinhasGrupo(lista) {
+      const ordenados = [...lista].sort((a, b) => b.presencas - a.presencas);
+      let linhas = '';
+      let posicaoExibida = 0;
+      let ultimaPresenca = -1;
+
+      ordenados.forEach(aluno => {
+        if (aluno.presencas !== ultimaPresenca) {
+          posicaoExibida++;
+          ultimaPresenca = aluno.presencas;
+        }
+
+        const posicao = posicaoExibida;
+        let classPosicao = '';
+        let medalha = '';
+        if (posicao === 1) { classPosicao = 'posicao-1'; medalha = ' (1o)'; }
+        else if (posicao === 2) { classPosicao = 'posicao-2'; medalha = ' (2o)'; }
+        else if (posicao === 3) { classPosicao = 'posicao-3'; medalha = ' (3o)'; }
+
+        const percentual = parseFloat(aluno.percentual);
+        let classPercentual = 'percentual-low';
+        if (percentual >= 75) classPercentual = 'percentual-high';
+        else if (percentual >= 50) classPercentual = 'percentual-medium';
+
+        const faltas = aluno.faltas || 0;
+        const faltasConsecutivas = aluno.faltas_consecutivas || 0;
+        const faltasJustificadas = aluno.faltas_justificadas || 0;
+        const classFaltasConsec = faltasConsecutivas >= 3 ? 'text-red font-bold' : '';
+        const badgeJustif = faltasJustificadas > 0
+          ? `<span class="badge-justificada" title="${faltasJustificadas} falta(s) justificada(s)">${faltasJustificadas}</span>`
+          : '<span style="color:#aaa">0</span>';
+
+        linhas += `
           <tr>
-            <th class="text-center">#</th>
-            <th>Aluno</th>
-            <th>Turma</th>
-            <th class="text-center">Presenças</th>
-            <th class="text-center">Faltas</th>
-            <th class="text-center" title="Faltas Consecutivas">F. Cons.</th>
-            <th class="text-center" title="Faltas Justificadas (não contam no cálculo)">Justif.</th>
-            <th class="text-center">Aulas</th>
-            <th>% Frequência</th>
+            <td class="text-center posicao ${classPosicao}">${posicao}${medalha}</td>
+            <td><strong>${aluno.nome}</strong></td>
+            <td class="text-center text-green"><strong>${aluno.presencas}</strong></td>
+            <td class="text-center text-red">${faltas}</td>
+            <td class="text-center ${classFaltasConsec}">${faltasConsecutivas}</td>
+            <td class="text-center">${badgeJustif}</td>
+            <td class="text-center">${aluno.total_aulas}</td>
+            <td>
+              <span class="percentual-bar">
+                <span class="percentual-bar-inner ${classPercentual}" style="width: ${percentual}%"></span>
+              </span>
+              <strong style="color: ${percentual >= 75 ? '#2e7d32' : percentual >= 50 ? '#ff8f00' : '#d32f2f'}">${aluno.percentual}%</strong>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-    `;
+        `;
+      });
+      return linhas;
+    }
 
-    let posicaoExibida = 0;
-    let ultimaPresenca = -1;
-
-    dadosOrdenados.forEach((aluno, index) => {
-      // Lógica de empate: se tiver a mesma quantidade de presenças que o anterior, mantém a posição
-      // Se for diferente, incrementa a posição exibida (Ranking denso: 1, 1, 2...)
-      if (aluno.presencas !== ultimaPresenca) {
-        posicaoExibida++;
-        ultimaPresenca = aluno.presencas;
-      }
-
-      const posicao = posicaoExibida;
-      let classPosicao = '';
-      let medalha = '';
-
-      if (posicao === 1) {
-        classPosicao = 'posicao-1';
-        medalha = ' (1o)';
-      } else if (posicao === 2) {
-        classPosicao = 'posicao-2';
-        medalha = ' (2o)';
-      } else if (posicao === 3) {
-        classPosicao = 'posicao-3';
-        medalha = ' (3o)';
-      }
-
-      const percentual = parseFloat(aluno.percentual);
-      let classPercentual = 'percentual-low';
-      if (percentual >= 75) {
-        classPercentual = 'percentual-high';
-      } else if (percentual >= 50) {
-        classPercentual = 'percentual-medium';
-      }
-
-      const faltas = aluno.faltas || 0;
-      const faltasConsecutivas = aluno.faltas_consecutivas || 0;
-      const faltasJustificadas = aluno.faltas_justificadas || 0;
-
-      // Alerta para faltas consecutivas (ex: >= 3)
-      const classFaltasConsec = faltasConsecutivas >= 3 ? 'text-red font-bold' : '';
-
-      // Indicador visual para quem tem faltas justificadas
-      const badgeJustif = faltasJustificadas > 0
-        ? `<span class="badge-justificada" title="${faltasJustificadas} falta(s) justificada(s)">${faltasJustificadas}</span>`
-        : '<span style="color:#aaa">0</span>';
-
+    let html = '';
+    turmasOrdenadas.forEach(turma => {
       html += `
-        <tr>
-          <td class="text-center posicao ${classPosicao}">${posicao}${medalha}</td>
-          <td><strong>${aluno.nome}</strong></td>
-          <td><span class="badge-turma">${aluno.turma_nome}</span></td>
-          <td class="text-center text-green"><strong>${aluno.presencas}</strong></td>
-          <td class="text-center text-red">${faltas}</td>
-          <td class="text-center ${classFaltasConsec}">${faltasConsecutivas}</td>
-          <td class="text-center">${badgeJustif}</td>
-          <td class="text-center">${aluno.total_aulas}</td>
-          <td>
-            <span class="percentual-bar">
-              <span class="percentual-bar-inner ${classPercentual}" style="width: ${percentual}%"></span>
-            </span>
-            <strong style="color: ${percentual >= 75 ? '#2e7d32' : percentual >= 50 ? '#ff8f00' : '#d32f2f'}">${aluno.percentual}%</strong>
-          </td>
-        </tr>
+        <h3 style="margin-top: 30px; margin-bottom: 8px;">
+          <span class="badge-turma" style="font-size: 1rem;">${turma}</span>
+        </h3>
+        <table role="grid">
+          <thead>
+            <tr>
+              <th class="text-center">#</th>
+              <th>Aluno</th>
+              <th class="text-center">Presenças</th>
+              <th class="text-center">Faltas</th>
+              <th class="text-center" title="Faltas Consecutivas">F. Consecutivas</th>
+              <th class="text-center" title="Faltas Justificadas">Justif.</th>
+              <th class="text-center">Aulas</th>
+              <th>% Frequência</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${renderLinhasGrupo(grupos[turma])}
+          </tbody>
+        </table>
       `;
     });
 
-    html += '</tbody></table>';
     area.innerHTML = html;
+  }
+
+  function exportarPDF() {
+    window.print();
   }
 
   function formatarData(dataISO) {
