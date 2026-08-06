@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar · EBD Digital</title>
+  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css">
+  <style>main{max-width:480px;padding-top:12vh;text-align:center}.erro{color:#b71c1c}</style>
+</head>
+<body>
+  <main class="container">
+    <article>
+      <h1>EBD Digital</h1>
+      <p>Entre com a conta Google previamente autorizada.</p>
+      <button id="entrar" type="button">Entrar com Google</button>
+      <p id="mensagem" aria-live="polite"></p>
+    </article>
+  </main>
+  <script src="common.js?v=2.0"></script>
+  <script>
+    const botao = document.getElementById('entrar');
+    const mensagem = document.getElementById('mensagem');
+    const retorno = new URLSearchParams(location.search).get('retorno');
+
+    async function concluirLogin() {
+      try {
+        const perfil = await carregarPerfil();
+        location.replace(retorno || (perfil.role === 'admin' ? 'dashboard.html' : 'index.html'));
+      } catch (erro) {
+        mensagem.className = 'erro';
+        mensagem.textContent = erro.status === 403 ? 'Sua conta não está autorizada.' : erro.message;
+        if (erro.status === 403) await encerrarSessao(false);
+      }
+    }
+
+    botao.addEventListener('click', async () => {
+      botao.disabled = true;
+      mensagem.className = '';
+      mensagem.textContent = 'Abrindo o Google...';
+      try {
+        await entrarComGoogle();
+        mensagem.textContent = 'Verificando autorização...';
+        await concluirLogin();
+      } catch (erro) {
+        const bloqueado = erro.code === 'auth/popup-blocked' || erro.code === 'auth/cancelled-popup-request';
+        mensagem.className = 'erro';
+        mensagem.textContent = bloqueado ? 'O popup foi bloqueado. Permita popups e tente novamente.' :
+          erro.code === 'auth/popup-closed-by-user' ? 'Login cancelado.' : 'Não foi possível entrar com o Google.';
+      } finally { botao.disabled = false; }
+    });
+
+    inicializarAutenticacao().then(usuario => { if (usuario) concluirLogin(); }).catch(erro => {
+      mensagem.className = 'erro'; mensagem.textContent = erro.message;
+    });
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="auth-pendente">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +10,7 @@
     .card { padding: 20px; border: 1px solid #333; border-radius: 8px; margin-bottom: 20px; }
     h2 { margin-bottom: 10px; font-size: 1.2rem; border-bottom: 1px solid #444; padding-bottom: 5px; }
   </style>
+  <style>.auth-pendente body{visibility:hidden}</style>
 </head>
 <body>
   <main class="container">
@@ -57,7 +58,7 @@
 
   </main>
 
-  <script src="common.js?v=1.0"></script>
+  <script src="common.js?v=2.0"></script>
 
   <script>
     // Inicia a verificação ao abrir a página
@@ -66,7 +67,7 @@
     // 1. Carregar Turmas para o Select
     async function carregarTurmas() {
       try {
-        const res = await fetch(`${API_URL}/turmas`);
+        const res = await apiFetch(`${API_URL}/turmas`);
         const turmas = await res.json();
         const select = document.getElementById('select-turmas');
         
@@ -93,7 +94,7 @@
       botao.innerText = "Salvando...";
 
       try {
-        const resposta = await fetch(`${API_URL}/alunos`, {
+        const resposta = await apiFetch(`${API_URL}/alunos`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -130,7 +131,7 @@
       // Por enquanto, vou assumir que precisamos criar essa rota no Node.
       
       try {
-        const res = await fetch(`${API_URL}/turmas`, {
+        const res = await apiFetch(`${API_URL}/turmas`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ nome: nome })
@@ -162,7 +163,7 @@
       }
       areaLista.innerHTML = 'Carregando alunos...';
 
-      const res = await fetch(`${API_URL}/turmas/${turmaId}/alunos`);
+      const res = await apiFetch(`${API_URL}/turmas/${turmaId}/alunos`);
       const alunos = await res.json();
 
       areaLista.innerHTML = '<h4>✏️ Toque para editar</h4>';
@@ -243,7 +244,7 @@
             payload[campo] = novoValor; // Cria objeto dinâmico { nome: "..." } ou { data_nascimento: "..." }
 
             try {
-                await fetch(`${API_URL}/alunos/${id}`, {
+                await apiFetch(`${API_URL}/alunos/${id}`, {
                     method: 'PUT',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
@@ -255,7 +256,7 @@
 
     async function editarNomeAluno(id, novoNome) {
       try {
-        await fetch(`${API_URL}/alunos/${id}`, {
+        await apiFetch(`${API_URL}/alunos/${id}`, {
           method: 'PUT',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ nome: novoNome })
@@ -266,7 +267,7 @@
 
     async function desativarAluno(id) {
       try {
-        await fetch(`${API_URL}/alunos/${id}`, {
+        await apiFetch(`${API_URL}/alunos/${id}`, {
           method: 'PUT',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ ativo: false }) // <--- O PULO DO GATO

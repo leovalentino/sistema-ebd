@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="auth-pendente">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -100,6 +100,7 @@
       }
     }
   </style>
+  <style>.auth-pendente body{visibility:hidden}</style>
 </head>
 <body>
 
@@ -180,7 +181,7 @@
     <div id="status-area"></div>
   </main>
 
-  <script src="common.js?v=1.0"></script>
+  <script src="common.js?v=2.0"></script>
   <script>
     verificarAcessoUsr();
     // Variáveis Globais
@@ -211,7 +212,7 @@
     // 1. Carregar Turmas ao abrir a tela
     async function carregarTurmas() {
       try {
-        const resposta = await fetch(`${API_URL}/turmas`);
+        const resposta = await apiFetch(`${API_URL}/turmas`);
         const turmas = await resposta.json();
         const select = document.getElementById('select-turmas');
 
@@ -237,7 +238,7 @@
       chamadaExistenteId = null;
 
       try {
-        const res = await fetch(`${API_URL}/turmas/${turmaId}/alunos`);
+        const res = await apiFetch(`${API_URL}/turmas/${turmaId}/alunos`);
         if (!res.ok) throw new Error("Erro na resposta da API");
 
         alunosCarregados = await res.json();
@@ -399,7 +400,7 @@
       setSalvarState({ disabled: true, text: "Salvando..." });
 
       try {
-        const resposta = await fetch(`${API_URL}/chamada`, {
+        const resposta = await apiFetch(`${API_URL}/chamada`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -445,7 +446,7 @@
       setSalvarState({ disabled: true, text: "Verificando..." });
 
       try {
-        const res = await fetch(`${API_URL}/chamada/verificar?turma_id=${turmaAtualId}&data=${dataSelecionada}`);
+        const res = await apiFetch(`${API_URL}/chamada/verificar?turma_id=${turmaAtualId}&data=${dataSelecionada}`);
         const dados = await res.json();
 
         if (seq !== verificacaoSequencial) return;

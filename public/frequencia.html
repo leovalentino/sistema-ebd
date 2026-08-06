@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="auth-pendente">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -186,6 +186,7 @@
       }
     }
   </style>
+  <style>.auth-pendente body{visibility:hidden}</style>
 </head>
 <body>
 
@@ -249,7 +250,7 @@
   </section>
 </main>
 
-<script src="common.js?v=1.0"></script>
+<script src="common.js?v=2.0"></script>
 
 <script>
   verificarAcesso();
@@ -293,7 +294,7 @@
   // Carrega turmas para o filtro
   async function carregarTurmas() {
     try {
-      const res = await fetch(`${API_URL}/turmas`);
+      const res = await apiFetch(`${API_URL}/turmas`);
       const turmas = await res.json();
 
       const select = document.getElementById('filtro-turma');
@@ -330,7 +331,7 @@
     document.getElementById('filtro-faltas-cons').value = '0';
 
     try {
-      const res = await fetch(`${API_URL}/relatorios/frequencia?data_inicio=${dataInicio}&data_fim=${dataFim}`);
+      const res = await apiFetch(`${API_URL}/relatorios/frequencia?data_inicio=${dataInicio}&data_fim=${dataFim}`);
       const dados = await res.json();
 
       if (dados.erro) {

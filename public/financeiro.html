@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="auth-pendente">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -43,6 +43,7 @@
             border-radius: 5px;
         }
     </style>
+  <style>.auth-pendente body{visibility:hidden}</style>
 </head>
 <body>
 
@@ -118,18 +119,18 @@
     </table>
 </div>
 
-<script src="common.js?v=1.0"></script>
+<script src="common.js?v=2.0"></script>
 
 <script>
 
     // Inicia a verificação ao abrir a página
     verificarAcesso();
 
-    // Mostrar campos de admin se logado
-    if (localStorage.getItem('adm_logado') === 'sim') {
+    // A página e as rotas financeiras são exclusivas de administrador.
+    document.addEventListener('auth-ready', () => {
         document.getElementById('form-admin').style.display = 'block';
         document.querySelectorAll('.col-admin').forEach(el => el.style.display = '');
-    }
+    });
 
     // Setar data de hoje no input
     document.getElementById('input-data').value = new Date().toISOString().split('T')[0];
@@ -156,7 +157,7 @@
         const lista = todosLancamentos.filter(i => periodoDoLancamento(i) === filtro);
         const tbody = document.getElementById('tabela-lancamentos');
         tbody.innerHTML = '';
-        const isAdmin = localStorage.getItem('adm_logado') === 'sim';
+        const isAdmin = true;
 
         if (lista.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5">Nenhum lançamento avulso.</td></tr>';
@@ -181,7 +182,7 @@
 
     async function carregarFinanceiro() {
         try {
-            const res = await fetch(`${API_URL}/financeiro/resumo`);
+            const res = await apiFetch(`${API_URL}/financeiro/resumo`);
             const dados = await res.json();
 
             // Tabela Trimestre
@@ -251,7 +252,7 @@
             return;
         }
         try {
-            const res = await fetch(`${API_URL}/financeiro/lancamentos/${id}`, {
+            const res = await apiFetch(`${API_URL}/financeiro/lancamentos/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ valor: valorNum })
@@ -269,7 +270,7 @@
     async function excluirLancamento(id) {
         if (!confirm('Deseja excluir este lançamento?')) return;
         try {
-            const res = await fetch(`${API_URL}/financeiro/lancamentos/${id}`, { method: 'DELETE' });
+            const res = await apiFetch(`${API_URL}/financeiro/lancamentos/${id}`, { method: 'DELETE' });
             if (res.ok) {
                 carregarFinanceiro();
             }
@@ -288,7 +289,7 @@
         };
 
         try {
-            const res = await fetch(`${API_URL}/financeiro/lancamentos`, {
+            const res = await apiFetch(`${API_URL}/financeiro/lancamentos`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
