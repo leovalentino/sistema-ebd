@@ -538,14 +538,14 @@ app.post('/chamada', ...authenticated, async (req, res) => {
 //Salvar informações do dia (Clima, Secretário...)
 app.post('/diario', ...adminOnly, async (req, res) => {
   try {
-    const { data, secretario, clima, observacoes } = req.body;
+    const { data, clima, observacoes } = req.body;
 
     // Transforma "30/01/2025" em "30-01-2025" para usar como ID único
     const docId = data.replace(/\//g, '-');
 
     await db.collection('diario_geral').doc(docId).set({
       data,
-      secretario,
+      secretario: req.user.nome,
       clima,
       observacoes,
       ultima_atualizacao: new Date()

@@ -377,7 +377,7 @@
 
       <div>
         <label><strong>Secretário(a) Responsável</strong></label>
-        <input type="text" id="input-secretario" placeholder="Quem fechou o relatório?">
+        <input type="text" id="input-secretario" readonly aria-readonly="true">
       </div>
 
       <div>
@@ -901,7 +901,8 @@
     document.getElementById('lbl-data-painel').innerText = data;
     document.getElementById('input-data-oculta').value = data;
 
-    document.getElementById('input-secretario').value = "";
+    const perfil = usuarioAtual || await carregarPerfil();
+    document.getElementById('input-secretario').value = perfil.nome;
     document.getElementById('select-clima').value = "";
     document.getElementById('input-obs').value = "";
 
@@ -911,7 +912,6 @@
       const atual = lista.find(d => d.data === data);
 
       if(atual) {
-        document.getElementById('input-secretario').value = atual.secretario || "";
         document.getElementById('select-clima').value = atual.clima || "";
         document.getElementById('input-obs').value = atual.observacoes || "";
       }
@@ -933,7 +933,6 @@
     const data = document.getElementById('input-data-oculta').value;
     const body = {
       data: data,
-      secretario: document.getElementById('input-secretario').value,
       clima: document.getElementById('select-clima').value,
       observacoes: document.getElementById('input-obs').value
     };
