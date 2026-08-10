@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="auth-pendente">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -340,6 +340,7 @@
       }
     }
   </style>
+  <style>.auth-pendente body{visibility:hidden}</style>
 </head>
 <body>
 
@@ -404,7 +405,7 @@
 
 </main>
 
-<script src="common.js?v=1.0"></script>
+<script src="common.js?v=2.0"></script>
 
 <script>
   verificarAcesso();
@@ -433,9 +434,9 @@
       const area = document.getElementById('area-relatorios');
 
       const [resTurmas, resRelatorios, resDiario] = await Promise.all([
-        fetch(`${API_URL}/turmas`),
-        fetch(`${API_URL}/relatorios`),
-        fetch(`${API_URL}/diario`)
+        apiFetch(`${API_URL}/turmas`),
+        apiFetch(`${API_URL}/relatorios`),
+        apiFetch(`${API_URL}/diario`)
       ]);
 
       const listaTurmas = await resTurmas.json();
@@ -878,7 +879,7 @@
     if (!ultimaConfirmacao) return;
 
     try {
-      const res = await fetch(`${API_URL}/relatorios/${relatorioId}`, {
+      const res = await apiFetch(`${API_URL}/relatorios/${relatorioId}`, {
         method: 'DELETE'
       });
 
@@ -905,7 +906,7 @@
     document.getElementById('input-obs').value = "";
 
     try {
-      const res = await fetch(`${API_URL}/diario`);
+      const res = await apiFetch(`${API_URL}/diario`);
       const lista = await res.json();
       const atual = lista.find(d => d.data === data);
 
@@ -937,7 +938,7 @@
       observacoes: document.getElementById('input-obs').value
     };
 
-    await fetch(`${API_URL}/diario`, {
+    await apiFetch(`${API_URL}/diario`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body)

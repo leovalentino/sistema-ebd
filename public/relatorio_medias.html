@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="auth-pendente">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -79,6 +79,7 @@
         .text-blue { color: #1565c0; font-weight: bold; }
         .bg-green-light { background-color: #e8f5e9; }
     </style>
+  <style>.auth-pendente body{visibility:hidden}</style>
 </head>
 <body>
 
@@ -172,7 +173,7 @@
     </div>
 </div>
 
-<script src="common.js?v=1.0"></script>
+<script src="common.js?v=2.0"></script>
 <script>
     verificarAcesso();
 
@@ -201,7 +202,7 @@
 
         try {
             const url = `${API_URL}/relatorios/medias?data_inicio=${dInicio}&data_fim=${dFim}`;
-            const res = await fetch(url);
+            const res = await apiFetch(url);
             const dados = await res.json();
 
             document.getElementById('carregando').style.display = 'none';

@@ -33,7 +33,8 @@ Este projeto é uma solução completa para a gestão da Escola Bíblica Dominic
 - **Histórico**: Consulta e exclusão de relatórios antigos.
 
 ### Segurança
-- **Controle de Acesso**: Dois níveis de acesso (Administrador e Professor) protegidos por senha.
+- **Firebase Authentication**: login exclusivo com Google e sessão gerenciada pelo SDK.
+- **Autorização no backend**: papéis `admin` e `professor` consultados na coleção `usuariosAutorizados`.
 
 ## 📂 Estrutura do Projeto
 
@@ -42,6 +43,7 @@ Este projeto é uma solução completa para a gestão da Escola Bíblica Dominic
 ├── index.js          # Servidor Express e rotas da API
 ├── package.json      # Dependências e scripts
 ├── public/           # Arquivos do Frontend
+│   ├── login.html    # Login com Google
 │   ├── index.html    # Tela de Chamada (Principal)
 │   ├── cadastro.html # Gestão de Alunos e Turmas
 │   ├── dashboard.html# Visualização de Relatórios
@@ -68,29 +70,62 @@ cd ebd-api
 npm install
 ```
 
-### 3. Configurar Firebase
+### 3. Configurar Firebase Admin
 Obtenha o arquivo JSON de credenciais (Service Account) no console do Firebase e salve na raiz do projeto:
 - `ebd-803-firebase-key-test.json` (para desenvolvimento)
 - `ebd-803-firebase-key.json` (para produção)
 
-### 4. Variáveis de Ambiente
+### 4. Configurar login Google e aplicativo web
+
+No Console do Firebase:
+
+1. Acesse **Authentication → Sign-in method → Google**, habilite o provedor e escolha o e-mail de suporte.
+2. Em **Authentication → Settings → Authorized domains**, adicione `localhost` e o domínio do serviço no Render (por exemplo, `seu-app.onrender.com`).
+3. Em **Project settings → General → Your apps**, crie/selecione um aplicativo Web e copie os valores de `firebaseConfig`.
+
+### 5. Variáveis de ambiente
+
 Crie um arquivo `.env` na raiz do projeto:
 ```env
 PORT=3000
 NODE_ENV=development
-SENHA_ADM=sua_senha_adm
-SENHA_USR=sua_senha_professor
+FIREBASE_API_KEY=...
+FIREBASE_AUTH_DOMAIN=seu-projeto.firebaseapp.com
+FIREBASE_PROJECT_ID=seu-projeto
+FIREBASE_STORAGE_BUCKET=seu-projeto.appspot.com
+FIREBASE_MESSAGING_SENDER_ID=...
+FIREBASE_APP_ID=...
 ```
 
-### 5. Executar o projeto
-```bash
-node index.js
+Cadastre as mesmas seis variáveis no serviço do Render. Esses valores identificam o aplicativo web e são públicos; nunca coloque a chave privada ou o JSON da service account no frontend. Depois da migração, remova do ambiente do Render as antigas variáveis de senha compartilhada.
+
+### 6. Autorizar usuários
+
+Não há cadastro público. Crie manualmente um documento no Firestore:
+
+```text
+Collection: usuariosAutorizados
+Document ID: usuario@gmail.com
+
+nome: "Nome"
+role: "admin"
+ativo: true
 ```
-Acesse `http://localhost:3000` no seu navegador.
+
+O ID deve ser o e-mail sem espaços e em letras minúsculas. `role` aceita somente `admin` ou `professor`. Para revogar o acesso, altere `ativo` para `false`.
+
+Adicionar uma pessoa em **Usuários e permissões** do projeto Firebase concede acesso administrativo ao projeto Google, mas **não** autoriza essa pessoa neste sistema. A autorização da aplicação existe somente em `usuariosAutorizados`.
+
+### 7. Executar e testar localmente
+```bash
+npm install
+npm start
+```
+Acesse `http://localhost:3000/login.html`. O arquivo de credenciais de desenvolvimento deve existir e `localhost` deve estar nos domínios autorizados do Firebase Authentication.
 
 ## 🔐 Níveis de Acesso
-- **Administrador**: Acesso total ao sistema (Cadastro de turmas/alunos e Financeiro).
-- **Professor**: Acesso restrito para realização de chamadas.
+- **Administrador**: acesso a chamada, cadastros, dashboard, relatórios, diário e financeiro.
+- **Professor**: acesso às turmas, alunos da turma e realização/consulta da chamada.
 
 ## 📄 Licença
 Este projeto está sob a licença ISC.

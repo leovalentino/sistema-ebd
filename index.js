@@ -31,6 +31,9 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 const db = admin.firestore(); // Conecta no banco de dados
+const { autenticar, exigirRole } = require('./authMiddleware')(admin, db);
+const adminOnly = [autenticar, exigirRole('admin')];
+const authenticated = [autenticar, exigirRole('admin', 'professor')];
 
 // --- CONFIGURAÇÕES DO SERVIDOR (EXPRESS) ---
 const app = express();
@@ -41,36 +44,19 @@ app.use(express.json());  // Permite receber dados em JSON
 app.use(express.static('public')); 
 
 // Rota 1: Teste
-app.get('/', (req, res) => res.send('API Online'));
-
-app.post('/auth/login', (req, res) => {
-  const { senha } = req.body; // O frontend envia a senha digitada
-
-  // O Backend compara com a variável secreta do .env
-  const senhaCorreta = process.env.SENHA_ADM;
-
-  if (senha === senhaCorreta) {
-    res.json({ sucesso: true });
-  } else {
-    res.status(401).json({ sucesso: false, mensagem: "Senha incorreta" });
-  }
-});
-
-app.post('/auth/login-usr', (req, res) => {
-  const { senha } = req.body; // O frontend envia a senha digitada
-
-  // O Backend compara com a variável secreta do .env
-  const senhaCorreta = process.env.SENHA_USR;
-
-  if (senha === senhaCorreta) {
-    res.json({ sucesso: true });
-  } else {
-    res.status(401).json({ sucesso: false, mensagem: "Senha incorreta" });
-  }
-});
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/api/firebase-config', (req, res) => res.json({
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID
+}));
+app.get('/api/me', autenticar, (req, res) => res.json(req.user));
 
 // Rota 2: Listar Turmas
-app.get('/turmas', async (req, res) => {
+app.get('/turmas', ...authenticated, async (req, res) => {
   const snapshot = await db.collection('turmas').get();
   const lista = [];
   snapshot.forEach(doc => lista.push({ id: doc.id, ...doc.data() }));
@@ -78,7 +64,7 @@ app.get('/turmas', async (req, res) => {
 });
 
 // Rota 3: Cadastrar Aluno
-app.post('/alunos', async (req, res) => {
+app.post('/alunos', ...adminOnly, async (req, res) => {
   try {
     // Recebe a data junto com os outros dados
     const { nome, turma_id, ativo, data_nascimento } = req.body;
@@ -97,7 +83,7 @@ app.post('/alunos', async (req, res) => {
 });
 
 // Rota 4: BUSCAR ALUNOS DA TURMA
-app.get('/turmas/:turmaId/alunos', async (req, res) => {
+app.get('/turmas/:turmaId/alunos', ...authenticated, async (req, res) => {
   try {
     const turmaId = req.params.turmaId;
 
@@ -120,7 +106,7 @@ app.get('/turmas/:turmaId/alunos', async (req, res) => {
 });
 
 // Rota 5: PAINEL FINANCEIRO (Agrupado por TRIMESTRE)
-app.get('/financeiro/resumo', async (req, res) => {
+app.get('/financeiro/resumo', ...adminOnly, async (req, res) => {
   try {
     const snapshot = await db.collection('relatorios_aula')
         .where('oferta_total', '>', 0)
@@ -219,7 +205,7 @@ app.get('/financeiro/resumo', async (req, res) => {
 });
 
 // --- NOVAS ROTAS FINANCEIRAS ---
-app.post('/financeiro/lancamentos', async (req, res) => {
+app.post('/financeiro/lancamentos', ...adminOnly, async (req, res) => {
   try {
     const { valor, tipo, descricao, data } = req.body;
     
@@ -245,7 +231,7 @@ app.post('/financeiro/lancamentos', async (req, res) => {
   }
 });
 
-app.delete('/financeiro/lancamentos/:id', async (req, res) => {
+app.delete('/financeiro/lancamentos/:id', ...adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     await db.collection('lancamentos_financeiros').doc(id).delete();
@@ -255,7 +241,7 @@ app.delete('/financeiro/lancamentos/:id', async (req, res) => {
   }
 });
 
-app.patch('/financeiro/lancamentos/:id', async (req, res) => {
+app.patch('/financeiro/lancamentos/:id', ...adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     const { valor } = req.body;
@@ -270,7 +256,7 @@ app.patch('/financeiro/lancamentos/:id', async (req, res) => {
 });
 
 // Rota: Criar Nova Turma
-app.post('/turmas', async (req, res) => {
+app.post('/turmas', ...adminOnly, async (req, res) => {
   try {
     const doc = await db.collection('turmas').add(req.body);
     res.json({ id: doc.id, sucesso: true });
@@ -280,7 +266,7 @@ app.post('/turmas', async (req, res) => {
 });
 
 // Rota 6: Listar Relatórios (Para o Dashboard)
-app.get('/relatorios', async (req, res) => {
+app.get('/relatorios', ...adminOnly, async (req, res) => {
   try {
     // Busca ordenado por data (do mais recente para o antigo)
     const snapshot = await db.collection('relatorios_aula')
@@ -307,7 +293,7 @@ app.get('/relatorios', async (req, res) => {
 });
 
 // Rota: Editar Aluno
-app.put('/alunos/:id', async (req, res) => {
+app.put('/alunos/:id', ...adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     const dadosAtualizados = req.body; // Pega tudo que vier (nome, data, etc)
@@ -320,7 +306,7 @@ app.put('/alunos/:id', async (req, res) => {
 });
 
 // Rota: Excluir Relatório (Para corrigir chamadas erradas)
-app.delete('/relatorios/:id', async (req, res) => {
+app.delete('/relatorios/:id', ...adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     await db.collection('relatorios_aula').doc(id).delete();
@@ -331,7 +317,7 @@ app.delete('/relatorios/:id', async (req, res) => {
 });
 
 // --- NOVO: Rota para verificar se já tem chamada no dia ---
-app.get('/relatorios/medias', async (req, res) => {
+app.get('/relatorios/medias', ...adminOnly, async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
 
@@ -486,7 +472,7 @@ async function buscarChamadaPorTurmaEData(turmaId, data) {
 }
 
 // --- NOVO: Rota para verificar se já tem chamada no dia ---
-app.get('/chamada/verificar', async (req, res) => {
+app.get('/chamada/verificar', ...authenticated, async (req, res) => {
   try {
     const { turma_id, data } = req.query;
     const chamada = await buscarChamadaPorTurmaEData(turma_id, data);
@@ -503,7 +489,7 @@ app.get('/chamada/verificar', async (req, res) => {
 });
 
 // ATUALIZADO: Rota de Salvar com idempotencia por turma/data
-app.post('/chamada', async (req, res) => {
+app.post('/chamada', ...authenticated, async (req, res) => {
   try {
     const { turma_id, oferta, alunos, data_aula, visitantes, professor, observacoes } = req.body;
 
@@ -550,7 +536,7 @@ app.post('/chamada', async (req, res) => {
 });
 
 //Salvar informações do dia (Clima, Secretário...)
-app.post('/diario', async (req, res) => {
+app.post('/diario', ...adminOnly, async (req, res) => {
   try {
     const { data, secretario, clima, observacoes } = req.body;
 
@@ -572,7 +558,7 @@ app.post('/diario', async (req, res) => {
 });
 
 // 2. Ler todas as informações
-app.get('/diario', async (req, res) => {
+app.get('/diario', ...adminOnly, async (req, res) => {
   try {
     const snapshot = await db.collection('diario_geral').get();
     const dados = [];
@@ -584,7 +570,7 @@ app.get('/diario', async (req, res) => {
 });
 
 // Rota: Relatório de Frequência por Aluno (Ranking)
-app.get('/relatorios/frequencia', async (req, res) => {
+app.get('/relatorios/frequencia', ...adminOnly, async (req, res) => {
   try {
     const { data_inicio, data_fim } = req.query;
 
